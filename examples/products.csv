@@ -1,0 +1,2 @@
+Product,Product name,Entity,Type,Module,Repository,Odoo versions,Store link,More information,Logo,Accent colour,Background colour,Identity source,Notes
+Example App,Contacts Tour,Yadenis Piñero,Odoo App,contacts,,17–19,https://yadenisp.wordpress.com/,,examples/logos/product.png,#E64A53,#FFFFFF,Yadenis Piñero identity manual,"Example product for the example spec. A logo can be a local path, a public URL or a Google Drive link (with a copy in logos_dir/<Drive id>.png)."

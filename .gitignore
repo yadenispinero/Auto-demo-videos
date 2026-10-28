@@ -1,0 +1,21 @@
+# Whitelist: only the tool and its examples go to the repo. Your settings (config.json), product and entity CSV,
+# logos (marcas/), specs, keys, clips and other local tools stay out.
+/*
+!/.gitignore
+!/README.md
+!/LICENSE
+!/video.py
+!/record.py
+!/cards.py
+!/drive.py
+!/config.py
+!/config.example.json
+!/spec.schema.json
+!/bin/
+!/fonts/
+!/examples/
+__pycache__/
+*.pyc
+examples/videos/clips/
+examples/videos/final/
+*service-account*.json

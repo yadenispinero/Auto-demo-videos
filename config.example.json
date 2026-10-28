@@ -1,0 +1,20 @@
+{
+  "_comment": "Copy to config.json (it stays out of the repo) and fill it in. Everything is optional: without 'drive' and 'plan' the tool still records and builds videos. See config.py.",
+  "drive": {
+    "key": "~/.config/video-tool/drive-service-account.json",
+    "act_as": "person@example.com",
+    "videos_folder": "https://drive.google.com/drive/folders/YOUR_VIDEOS_FOLDER_ID"
+  },
+  "plan": {
+    "sheet_id": "YOUR_PLAN_SHEET_ID",
+    "tab": "Videos",
+    "video_type": "YouTube video",
+    "columns": {"type": "Type", "media": "Media folder", "post": "Description"}
+  },
+  "identity": {
+    "products_csv": "examples/products.csv",
+    "entities_csv": "examples/entities.csv",
+    "logos_dir": "examples/logos",
+    "font": "fonts/OpenSans[wdth,wght].ttf"
+  }
+}

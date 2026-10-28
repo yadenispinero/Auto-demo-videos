@@ -1,0 +1,6 @@
+#!/bin/sh
+# ffmpeg 7 in Docker (image local/ffmpeg, built from ffmpeg.Dockerfile). Only the workspace folder is visible
+# inside the container: input and output files must be inside it. VIDEO_WORKSPACE sets it (default: three levels
+# above this file).
+WS="${VIDEO_WORKSPACE:-$(cd "$(dirname "$0")/../../.." && pwd)}"
+exec docker run --rm -u "$(id -u):$(id -g)" -v "$WS:$WS" -w "$PWD" local/ffmpeg ffmpeg "$@"

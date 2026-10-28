@@ -1,0 +1,895 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "presentacion/video-spec",
+  "title": "Video spec (presentacion/<repo>/<version>/videos/<video>.json)",
+  "description": "One demo video of an Odoo module: the scenes to record in a local demo database, in one recording language, with subtitles in the other languages. Validate with: python3 video.py check <spec.json>. Guide: README.md.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenes"
+  ],
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "title": {
+      "type": "string",
+      "description": "What the video shows, for people (not used in the video)."
+    },
+    "product": {
+      "type": "string",
+      "description": "Product of the video: its 'Module' (my_module) or 'Product' value in the products CSV (identity.products_csv in config.json). Gives the opening, closing and thumbnail their identity."
+    },
+    "plan_row": {
+      "type": "integer",
+      "minimum": 2,
+      "description": "Row of the video in the plan sheet (plan.* in config.json), if you use one."
+    },
+    "lang": {
+      "$ref": "#/$defs/langCode",
+      "default": "es",
+      "description": "Recording language (ISO 639-1, e.g. en). Odoo and the demo data are in this language."
+    },
+    "subtitles": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/langCode"
+      },
+      "uniqueItems": true,
+      "default": [],
+      "description": "Subtitle languages (ISO 639-1), in order. May be empty."
+    },
+    "demo": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "base",
+        "db"
+      ],
+      "description": "Local demo Odoo the scenes are recorded on.",
+      "properties": {
+        "base": {
+          "type": "string",
+          "pattern": "^http://(127\\.0\\.0\\.1|localhost):[0-9]+$",
+          "description": "e.g. http://127.0.0.1:8096"
+        },
+        "db": {
+          "type": "string"
+        },
+        "login": {
+          "type": "string",
+          "default": "admin"
+        },
+        "password": {
+          "type": "string",
+          "default": "admin",
+          "description": "Demo databases only: never a real password."
+        },
+        "rebuild": {
+          "type": "string",
+          "description": "Script (relative to the spec) that rebuilds the database and starts Odoo, e.g. grabar_v3.sh."
+        }
+      }
+    },
+    "out": {
+      "type": "string",
+      "default": "clips",
+      "description": "Output folder, relative to the spec."
+    },
+    "final": {
+      "type": "string",
+      "default": "final",
+      "description": "Folder of the final files (mp4, .srt, chapters.json, thumbnail), relative to the spec. Their names start with the spec file name (v3.mp4, v3.en.srt...)."
+    },
+    "drive_folder": {
+      "type": "string",
+      "minLength": 10,
+      "description": "Folder of the video in Drive, inside the videos folder (drive.videos_folder) › product › video: its link or id (the media column of plan_row, if you use a plan sheet). 'video.py drive' copies the final files there (the YouTube upload takes them from it)."
+    },
+    "intro": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Opening screen generated from the product's identity (productos.csv): product name and the entity that makes it. Needs 'product'.",
+      "properties": {
+        "seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 3
+        }
+      }
+    },
+    "closing": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [],
+      "description": "Closing screen. Without 'image' it is generated from the product's identity (productos.csv): product logo and store link. 'image' (relative to the spec) replaces it with a hand-made 1920x1080 image.",
+      "properties": {
+        "image": {
+          "type": "string",
+          "description": "Path relative to the spec, e.g. clips/v3-99-closing.png."
+        },
+        "seconds": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "default": 4
+        }
+      }
+    },
+    "thumbnail_title": {
+      "$ref": "#/$defs/text",
+      "description": "Video title on the YouTube thumbnail (default: 'title'). Per language like the notes, or a plain string."
+    },
+    "youtube_description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "YouTube description in the recording language, from the «YouTube» section of the script: plain text, one paragraph per line, links allowed. An optional last line «Tags: a, b, c» gives the tags. No chapters: the upload adds them from <video>.chapters.json. 'video.py drive' writes it in the post column of plan_row (plan sheet); the YouTube upload can take the description from there and translates it to the subtitle languages."
+    },
+    "scenes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/scene"
+      }
+    }
+  },
+  "$defs": {
+    "langCode": {
+      "type": "string",
+      "pattern": "^[a-z]{2}$",
+      "description": "ISO 639-1: es, en, de..."
+    },
+    "text": {
+      "description": "Text per language: {\"es\": ..., \"en\": ..., \"de\": ...} with the recording language and every subtitle language. A plain string is only allowed when the video has no subtitles.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]{2}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    },
+    "seconds": {
+      "type": "number",
+      "minimum": 0
+    },
+    "nth": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "n-th visible match (0 = first)."
+    },
+    "within": {
+      "type": "string",
+      "description": "CSS of the container to search in, e.g. .modal-footer."
+    },
+    "scene": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "name",
+        "path"
+      ],
+      "properties": {
+        "name": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]*$",
+          "description": "<video>-<nn>-<word>, e.g. v3-01-duplicados. Also the clip file name."
+        },
+        "path": {
+          "type": "string",
+          "pattern": "^/",
+          "description": "Odoo URL path the scene starts on, e.g. /odoo/action-sale.action_orders."
+        },
+        "load": {
+          "$ref": "#/$defs/seconds",
+          "default": 6,
+          "description": "Seconds to wait for the page before recording (not in the clip)."
+        },
+        "lead": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.5,
+          "description": "Seconds recorded before the first step."
+        },
+        "tail": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.0,
+          "description": "Seconds recorded after the last step."
+        },
+        "chapter": {
+          "$ref": "#/$defs/text",
+          "description": "YouTube chapter title that starts with this scene."
+        },
+        "setup": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "description": "Steps run before recording (not in the clip)."
+        },
+        "steps": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "description": "Recorded steps."
+        },
+        "post": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/step"
+          },
+          "description": "Steps run after recording (not in the clip)."
+        }
+      }
+    },
+    "step": {
+      "description": "Exactly one action key per step, plus its options. 'after' = seconds to wait after the action (still recorded).",
+      "oneOf": [
+        {
+          "$ref": "#/$defs/step_wait"
+        },
+        {
+          "$ref": "#/$defs/step_goto"
+        },
+        {
+          "$ref": "#/$defs/step_click"
+        },
+        {
+          "$ref": "#/$defs/step_click_css"
+        },
+        {
+          "$ref": "#/$defs/step_hover"
+        },
+        {
+          "$ref": "#/$defs/step_hover_css"
+        },
+        {
+          "$ref": "#/$defs/step_type"
+        },
+        {
+          "$ref": "#/$defs/step_key"
+        },
+        {
+          "$ref": "#/$defs/step_highlight"
+        },
+        {
+          "$ref": "#/$defs/step_highlight_css"
+        },
+        {
+          "$ref": "#/$defs/step_unhighlight"
+        },
+        {
+          "$ref": "#/$defs/step_scroll"
+        },
+        {
+          "$ref": "#/$defs/step_scroll_to"
+        },
+        {
+          "$ref": "#/$defs/step_js"
+        },
+        {
+          "$ref": "#/$defs/step_call"
+        },
+        {
+          "$ref": "#/$defs/step_arrow"
+        },
+        {
+          "$ref": "#/$defs/step_spotlight"
+        },
+        {
+          "$ref": "#/$defs/step_unspotlight"
+        },
+        {
+          "$ref": "#/$defs/step_badge"
+        },
+        {
+          "$ref": "#/$defs/step_note"
+        },
+        {
+          "$ref": "#/$defs/step_zoom"
+        },
+        {
+          "$ref": "#/$defs/step_unzoom"
+        },
+        {
+          "$ref": "#/$defs/step_clear"
+        }
+      ]
+    },
+    "step_wait": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "wait"
+      ],
+      "description": "Pause; the clip keeps recording.",
+      "properties": {
+        "wait": {
+          "$ref": "#/$defs/seconds"
+        }
+      }
+    },
+    "step_goto": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "goto"
+      ],
+      "description": "Open another page; the loading time is cut from the clip.",
+      "properties": {
+        "goto": {
+          "type": "string",
+          "pattern": "^/"
+        },
+        "load": {
+          "$ref": "#/$defs/seconds",
+          "default": 5
+        }
+      }
+    },
+    "step_click": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "click"
+      ],
+      "description": "Move the cursor to the element with this exact visible text and click it.",
+      "properties": {
+        "click": {
+          "$ref": "#/$defs/screenText"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "move": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.8
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.6
+        }
+      }
+    },
+    "step_click_css": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "click_css"
+      ],
+      "description": "Like click, but the element is found by CSS selector.",
+      "properties": {
+        "click_css": {
+          "type": "string"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "move": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.8
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.6
+        }
+      }
+    },
+    "step_hover": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hover"
+      ],
+      "description": "Move the cursor to the element with this exact visible text.",
+      "properties": {
+        "hover": {
+          "$ref": "#/$defs/screenText"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "move": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.8
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.6
+        }
+      }
+    },
+    "step_hover_css": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "hover_css"
+      ],
+      "properties": {
+        "hover_css": {
+          "type": "string"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "move": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.8
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.6
+        }
+      }
+    },
+    "step_type": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "type"
+      ],
+      "description": "Type in the focused field, key by key.",
+      "properties": {
+        "type": {
+          "$ref": "#/$defs/screenText",
+          "description": "Text typed key by key (per language if it differs)."
+        },
+        "delay": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.06
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.8
+        }
+      }
+    },
+    "step_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "key"
+      ],
+      "properties": {
+        "key": {
+          "enum": [
+            "Enter",
+            "Escape",
+            "Tab"
+          ]
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.8
+        }
+      }
+    },
+    "step_highlight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "highlight"
+      ],
+      "description": "Red box around the element with this exact visible text (in a form: its label and value).",
+      "properties": {
+        "highlight": {
+          "$ref": "#/$defs/screenText"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "point": {
+          "type": "boolean",
+          "default": true,
+          "description": "Move the cursor next to it."
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.2
+        }
+      }
+    },
+    "step_highlight_css": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "highlight_css"
+      ],
+      "properties": {
+        "highlight_css": {
+          "type": "string"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "point": {
+          "type": "boolean",
+          "default": true
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.2
+        }
+      }
+    },
+    "step_unhighlight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unhighlight"
+      ],
+      "description": "Remove the red boxes.",
+      "properties": {
+        "unhighlight": {
+          "const": true
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.3
+        }
+      }
+    },
+    "step_scroll": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scroll"
+      ],
+      "description": "Smooth scroll of the main content by this many pixels.",
+      "properties": {
+        "scroll": {
+          "type": "integer"
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.2
+        }
+      }
+    },
+    "step_scroll_to": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scroll_to"
+      ],
+      "description": "Smooth scroll to the element with this CSS selector.",
+      "properties": {
+        "scroll_to": {
+          "type": "string"
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.2
+        }
+      }
+    },
+    "step_js": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "js"
+      ],
+      "description": "Any JavaScript in the page.",
+      "properties": {
+        "js": {
+          "type": "string"
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.5
+        }
+      }
+    },
+    "step_call": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "call"
+      ],
+      "description": "JSON-RPC call to Odoo: [model, method, args, kwargs].",
+      "properties": {
+        "call": {
+          "type": "array",
+          "prefixItems": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "string"
+            },
+            {
+              "type": "array"
+            },
+            {
+              "type": "object"
+            }
+          ],
+          "minItems": 4,
+          "maxItems": 4
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.2
+        }
+      }
+    },
+    "step_arrow": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "arrow"
+      ],
+      "description": "Animated arrow pointing at the element from one side. Stays until 'clear' or the end of the scene.",
+      "properties": {
+        "arrow": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/screenText"
+            },
+            {
+              "const": true
+            }
+          ],
+          "description": "Element it points at: its exact visible text (string or per language), or true plus 'at_css'."
+        },
+        "at_css": {
+          "type": "string"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "from": {
+          "enum": [
+            "left",
+            "right",
+            "top",
+            "bottom"
+          ],
+          "default": "left",
+          "description": "Side the arrow comes from."
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.5
+        }
+      }
+    },
+    "step_spotlight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "spotlight"
+      ],
+      "description": "Darkens the page except the element. A second spotlight moves to the new element.",
+      "properties": {
+        "spotlight": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/screenText"
+            },
+            {
+              "const": true
+            }
+          ],
+          "description": "Element it points at: its exact visible text (string or per language), or true plus 'at_css'."
+        },
+        "at_css": {
+          "type": "string"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.5
+        }
+      }
+    },
+    "step_unspotlight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unspotlight"
+      ],
+      "properties": {
+        "unspotlight": {
+          "const": true
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.5
+        }
+      }
+    },
+    "step_badge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "badge"
+      ],
+      "description": "Step number in a circle next to the element; numbered by itself through the whole video.",
+      "properties": {
+        "badge": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/screenText"
+            },
+            {
+              "const": true
+            }
+          ],
+          "description": "Element it points at: its exact visible text (string or per language), or true plus 'at_css'."
+        },
+        "at_css": {
+          "type": "string"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.0
+        }
+      }
+    },
+    "step_note": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "note"
+      ],
+      "description": "Text bubble next to the element ('at' / 'at_css'), or a caption at the bottom center without them. Shown in the recording language; each note is one subtitle line in the other languages. Stays until the next note, 'clear' or the end of the scene. Without 'after' it stays max(2.5, characters / 15) seconds.",
+      "properties": {
+        "note": {
+          "$ref": "#/$defs/text"
+        },
+        "at": {
+          "$ref": "#/$defs/screenText"
+        },
+        "at_css": {
+          "type": "string"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "place": {
+          "enum": [
+            "auto",
+            "above",
+            "below",
+            "left",
+            "right"
+          ],
+          "default": "auto",
+          "description": "Where the bubble goes around the element; auto = below, or above if there is no room."
+        },
+        "after": {
+          "$ref": "#/$defs/seconds"
+        }
+      }
+    },
+    "step_zoom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "zoom"
+      ],
+      "description": "Smoothly zooms the page in on the element (cursor and marks stay sharp).",
+      "properties": {
+        "zoom": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/screenText"
+            },
+            {
+              "const": true
+            }
+          ],
+          "description": "Element it points at: its exact visible text (string or per language), or true plus 'at_css'."
+        },
+        "at_css": {
+          "type": "string"
+        },
+        "within": {
+          "$ref": "#/$defs/within"
+        },
+        "nth": {
+          "$ref": "#/$defs/nth"
+        },
+        "factor": {
+          "type": "number",
+          "minimum": 1.1,
+          "maximum": 3,
+          "default": 1.6
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.5
+        }
+      }
+    },
+    "step_unzoom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "unzoom"
+      ],
+      "properties": {
+        "unzoom": {
+          "const": true
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 1.2
+        }
+      }
+    },
+    "step_clear": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "clear"
+      ],
+      "description": "Removes every mark (boxes, arrows, spotlight, badges, note) and the zoom.",
+      "properties": {
+        "clear": {
+          "const": true
+        },
+        "after": {
+          "$ref": "#/$defs/seconds",
+          "default": 0.5
+        }
+      }
+    },
+    "screenText": {
+      "description": "Text as it appears on screen: a string (same in every language, e.g. SRV-MANT) or {\"es\": \"Acciones\", \"en\": \"Actions\", \"de\": \"Aktion\"}; the recording language is used. Needs at least the recording language.",
+      "oneOf": [
+        {
+          "type": "string",
+          "minLength": 1
+        },
+        {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": {
+            "pattern": "^[a-z]{2}$"
+          },
+          "additionalProperties": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,47 @@
+{
+ "$schema": "../../spec.schema.json",
+ "title": "Find a contact and open its card in Odoo Contacts",
+ "thumbnail_title": {"en": "Find a contact in seconds", "es": "Encuentra un contacto en segundos"},
+ "product": "contacts",
+ "youtube_description": "How to search a contact in Odoo Contacts and open its card.\nMore: https://yadenisp.wordpress.com/\nTags: Odoo, Contacts, CRM",
+ "lang": "en",
+ "subtitles": ["es"],
+ "demo": {"base": "http://127.0.0.1:8069", "db": "demo_contacts"},
+ "out": "clips",
+ "final": "final",
+ "intro": {"seconds": 3},
+ "closing": {"seconds": 4},
+ "scenes": [
+  {
+   "name": "v1-01-list",
+   "path": "/odoo/contacts",
+   "chapter": {"en": "The contact list", "es": "La lista de contactos"},
+   "steps": [
+    {"wait": 1},
+    {"note": {"en": "All your customers and suppliers in one place.", "es": "Todos tus clientes y proveedores en un sitio."}, "after": 4},
+    {"clear": true, "after": 6}
+   ]
+  },
+  {
+   "name": "v1-02-search",
+   "path": "/odoo/contacts",
+   "chapter": {"en": "Search by name", "es": "Buscar por nombre"},
+   "steps": [
+    {"click_css": ".o_searchview_input", "after": 0.5},
+    {"type": "Azure", "delay": 0.15, "after": 1},
+    {"note": {"en": "Type part of the name and press Enter.", "es": "Escribe parte del nombre y pulsa Intro."}, "after": 4},
+    {"clear": true, "after": 5}
+   ]
+  },
+  {
+   "name": "v1-03-card",
+   "path": "/odoo/contacts",
+   "chapter": {"en": "Open the card", "es": "Abrir la ficha"},
+   "steps": [
+    {"click": {"en": "Azure Interior", "es": "Azure Interior"}, "after": 1.5},
+    {"note": {"en": "Address, contacts and activity, all on one card.", "es": "Dirección, contactos y actividad en una ficha."}, "after": 5},
+    {"clear": true, "after": 5}
+   ]
+  }
+ ]
+}
