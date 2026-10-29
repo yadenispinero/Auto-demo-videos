@@ -42,6 +42,14 @@ DEFAULTS = {
         "entities_csv": "entidades.csv",
         "logos_dir": "marcas/logos",
         "font": "fonts/OpenSans[wdth,wght].ttf",
+        # Call to action that `drive` adds to the YouTube description, per recording language ({store} = the
+        # product's store link, {entity} and {web} = the entity that makes it). A description line with the store
+        # link is replaced by it. Empty = no call to action.
+        "cta": {
+            "en": "Get the module on: {store}\nContact us on the {entity} website for help or other services: {web}",
+            "es": "Consigue el módulo en: {store}\nContáctanos en la web de {entity} para ayuda u otros servicios: {web}",
+            "de": "Das Modul gibt es hier: {store}\nFür Hilfe oder weitere Leistungen kontaktieren Sie uns auf der Website von {entity}: {web}",
+        },
     },
 }
 

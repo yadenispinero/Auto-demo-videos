@@ -6,7 +6,7 @@ colour of each entity). They can be tabs of a Google Sheet downloaded as CSV (Fi
 The spec only says which product it is ("product": its "Module" or "Product" value). Spanish headers (the ones of
 the original sheet) are accepted too: see PRODUCT_COLUMNS and ENTITY_COLUMNS.
 
-  opening  <out>/<video>-00-opening.png  1920x1080  product name + entity that makes it (its logo and name)
+  opening  <out>/<video>-00-opening.png  1920x1080  product name + the feature shown (spec "feature") + entity
   closing  <out>/<video>-99-closing.png  1920x1080  product logo + store link + entity name and web
   thumb    <final>/<video>.thumb.jpg     1280x720   logo + product name + video title (YouTube thumbnail)
 
@@ -172,6 +172,13 @@ body { background: var(--bg); color: var(--text); font-family: 'Open Sans', Aria
 .rule { width: 160px; height: 8px; border-radius: 4px; background: var(--accent); margin: 40px 0 34px; }
 .entity { font-weight: 600; font-size: 44px; letter-spacing: .02em; color: var(--text); opacity: .85; }
 .maker { display: flex; align-items: center; gap: 22px; }
+/* opening with the feature: product name above, the feature big, the entity below */
+.opening .product { font-size: 46px; font-weight: 600; opacity: .9; }
+.opening .rule { margin: 26px 0 30px; width: 120px; height: 7px; }
+.feature { font-weight: 700; font-size: 62px; line-height: 1.15; max-width: 1160px; color: var(--text); text-wrap: balance; }
+.opening .maker { margin-top: 48px; }
+.opening .maker img { width: 56px; height: 56px; }
+.opening .entity { font-size: 34px; }
 .maker img { width: 76px; height: 76px; object-fit: contain; }
 /* closing: entity name and web under the store link */
 .by { margin-top: 54px; display: flex; align-items: center; gap: 16px; font-weight: 600; font-size: 28px;
@@ -201,9 +208,19 @@ def page(body, product, scale):
             f" --text: {product['entity']['Text colour']}; }}</style></head><body>{body}<div class='bar'></div></body></html>")
 
 
-def opening_html(p, entity_logo):
-    return (f"<div class='wrap'><div class='product'>{html.escape(p['Product name'])}</div>"
-            f"<div class='rule'></div><div class='maker'><img src='file://{entity_logo}'>"
+def capitalized(text):
+    text = " ".join(str(text or "").split())
+    return text[:1].upper() + text[1:]
+
+
+def opening_html(p, entity_logo, feature=""):
+    if not feature:
+        return (f"<div class='wrap'><div class='product'>{html.escape(p['Product name'])}</div>"
+                f"<div class='rule'></div><div class='maker'><img src='file://{entity_logo}'>"
+                f"<div class='entity'>{html.escape(p['Entity'])}</div></div></div>")
+    return (f"<div class='wrap opening'><div class='product'>{html.escape(p['Product name'])}</div>"
+            f"<div class='rule'></div><div class='feature'>{html.escape(capitalized(feature))}</div>"
+            f"<div class='maker'><img src='file://{entity_logo}'>"
             f"<div class='entity'>{html.escape(p['Entity'])}</div></div></div>")
 
 
@@ -282,14 +299,14 @@ def build(spec_path, spec, out_dir, final_dir, log=print):
     entity_logo = trimmed(logo_file(product["entity"]["Video logo"]))
     video = os.path.splitext(os.path.basename(spec_path))[0]
     lang = spec.get("lang", "es")
-    title = spec.get("thumbnail_title") or spec.get("title") or product["Product name"]
-    if isinstance(title, dict):
-        title = title.get(lang) or next(iter(title.values()))
+    pick = lambda v: (v.get(lang) or next(iter(v.values()), "")) if isinstance(v, dict) else (v or "")
+    feature = capitalized(pick(spec.get("feature")))
+    title = pick(spec.get("thumbnail_title")) or feature or spec.get("title") or product["Product name"]
     files = {"opening": os.path.join(out_dir, f"{video}-00-opening.png"),
              "closing": os.path.join(out_dir, f"{video}-99-closing.png"),
              "thumb_png": os.path.join(CACHE, f"{video}.thumb.png")}
     os.makedirs(CACHE, exist_ok=True)
-    render([(page(opening_html(product, entity_logo), product, 1.5), files["opening"], 1280, 720, 1.5),
+    render([(page(opening_html(product, entity_logo, feature), product, 1.5), files["opening"], 1280, 720, 1.5),
             (page(closing_html(product, logo, entity_logo), product, 1.5), files["closing"], 1280, 720, 1.5),
             (page(thumb_html(product, logo, title), product, 1), files["thumb_png"], 1280, 720, 1)])
     log(f"screens of {product['Product name']} ({product['Entity']}): "

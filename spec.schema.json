@@ -115,9 +115,13 @@
         }
       }
     },
+    "feature": {
+      "$ref": "#/$defs/text",
+      "description": "The specific function the video demonstrates, shown big on the opening screen under the product name, e.g. 'Create a project task from a vendor message'. Required with a generated opening ('intro'). The first letter is always shown in capitals. Keep it under about 60 characters (two lines)."
+    },
     "thumbnail_title": {
       "$ref": "#/$defs/text",
-      "description": "Video title on the YouTube thumbnail (default: 'title'). Per language like the notes, or a plain string."
+      "description": "Video title on the YouTube thumbnail (default: 'feature', then 'title'). Per language like the notes, or a plain string."
     },
     "youtube_title": {
       "type": "string",
@@ -128,7 +132,7 @@
     "youtube_description": {
       "type": "string",
       "minLength": 1,
-      "description": "YouTube description in the recording language, from the «YouTube» section of the script: plain text, one paragraph per line, links allowed. An optional last line «Tags: a, b, c» gives the tags. No chapters: the upload adds them from <video>.chapters.json. 'video.py drive' writes it in the post column of plan_row (plan sheet); the YouTube upload can take the description from there and translates it to the subtitle languages."
+      "description": "YouTube description in the recording language, from the «YouTube» section of the script: plain text, one paragraph per line, links allowed. An optional last line «Tags: a, b, c» gives the tags. No chapters: the upload adds them from <video>.chapters.json. 'video.py drive' adds the call to action of config.json (identity.cta: store link and entity website; it replaces a line with the store link) and writes it in the post column of the video's row; the YouTube upload can take the description from there and translates it to the subtitle languages."
     },
     "scenes": {
       "type": "array",

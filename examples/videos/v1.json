@@ -1,6 +1,7 @@
 {
  "$schema": "../../spec.schema.json",
  "title": "Find a contact and open its card in Odoo Contacts",
+ "feature": {"en": "Find a contact and open its card", "es": "Buscar un contacto y abrir su ficha"},
  "thumbnail_title": {"en": "Find a contact in seconds", "es": "Encuentra un contacto en segundos"},
  "product": "contacts",
  "youtube_title": "Odoo Contacts: find a contact and open its card in seconds",

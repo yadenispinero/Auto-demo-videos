@@ -304,8 +304,8 @@ def set_type(drive, todo):
 
 def plan_post(found, text, replace=False, ours=()):
     """What `set_type` would do with the post column (title and description for the upload):
-    {row, cell, column, from, to, action}. Another text is 'kept' unless replace, or it is one of `ours`
-    (an older text written by this tool)."""
+    {row, cell, column, from, to, action}. Another text is 'kept' unless replace, or it was written by this tool:
+    equal to one of `ours`, or starting with one of them that ends with a line break (a prefix)."""
     post = COLUMNS["post"]
     if not post:
         raise DriveError("config.json has no plan.columns.post")
@@ -313,7 +313,8 @@ def plan_post(found, text, replace=False, ours=()):
         raise DriveError(f"{PLAN_TAB} has no column «{post}»")
     old = found["values"][post].strip()
     action = ("unchanged" if old == text.strip()
-              else "set" if not old or replace or old in [o.strip() for o in ours] else "kept")
+              else "set" if not old or replace or any(old == o.strip() or (o.endswith("\n") and old.startswith(o))
+                                                       for o in ours) else "kept")
     return {"row": found["row"], "cell": _cell(found, post), "column": post, "from": old, "to": text, "action": action}
 
 

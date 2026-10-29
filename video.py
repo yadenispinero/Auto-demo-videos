@@ -30,6 +30,7 @@ Output contract (for agents and scripts):
 
 import argparse
 import json
+import re
 import os
 import subprocess
 import sys
@@ -209,6 +210,14 @@ def check_spec(spec_path, lang_override=None):
                 cards.logo_file(product["entity"]["Video logo"])
             except cards.CardError as e:
                 errors.append(f"product: {e}")
+    if isinstance(spec.get("intro"), dict):
+        feature = spec.get("feature")
+        text = feature.get(spec.get("lang", "es"), "") if isinstance(feature, dict) else (feature or "")
+        if not text.strip():
+            errors.append("feature: missing. The opening screen shows, under the product name, the specific function the "
+                          "video demonstrates (e.g. \"Create a project task from a vendor message\")")
+        elif len(text) > 70:
+            warnings.append(f"feature: {len(text)} characters; over about 60 it takes three lines on the opening screen")
     elif spec.get("product"):
         warnings.append("no 'intro' and a hand-made or missing closing: the video does not show the product's identity "
                         "(add \"intro\": {} and \"closing\": {} to generate them from the products CSV)")
@@ -605,6 +614,7 @@ def cmd_new(args):
     spec = {"$schema": os.path.relpath(SCHEMA_PATH, os.path.dirname(os.path.abspath(args.spec))),
             "title": args.title or "TODO: what the video shows",
             "product": args.product or "TODO_module",
+            "feature": "TODO: the specific function the video demonstrates",
             "lang": args.lang, "subtitles": subtitles}
     if args.plan_row:
         spec["plan_row"] = args.plan_row
@@ -714,13 +724,41 @@ def final_files(spec_path, spec, info):
     return files, errors, warnings
 
 
-def youtube_post(spec):
-    """Text for the post column: «H1: <title>» and the description (the format the upload reads), plus the older
-    texts this tool may have written there (description alone), which can be replaced without --replace-post."""
+def with_cta(spec, desc, lang):
+    """The description with the call to action (identity.cta of config.json) in place of its line with the
+    product's store link (or, without one, before the tags line). Lines with an e-mail address are left out:
+    the call to action sends people to the entity's website."""
+    from config import SETTINGS
+
+    template = SETTINGS["identity"].get("cta", {}).get(lang) or SETTINGS["identity"].get("cta", {}).get("en")
+    if not template or not spec.get("product"):
+        return desc
+    sys.path.insert(0, HERE)
+    import cards
+
+    product = cards.find_product(spec["product"])
+    store, web = product["Store link"], product["entity"]["Web"]
+    cta = template.format(store=store, entity=product["Entity"], web=web).strip()
+    lines = desc.splitlines()
+    at = next((i for i, l in enumerate(lines) if store in l), None)
+    if at is None:  # no store line: before the tags line, or at the end
+        at = next((i for i, l in enumerate(lines) if re.match(r"^(Etiquetas|Tags|Schlagw[öo]rter)\s*:", l.strip(), re.I)),
+                  len(lines))
+        lines.insert(at, "")
+    lines[at:at + 1] = cta.splitlines()
+    # The call to action points to the entity's website: support lines with an e-mail address go away.
+    email = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
+    return "\n".join(l for l in lines if l in cta.splitlines() or (store not in l and not email.search(l)))
+
+
+def youtube_post(spec, lang):
+    """Text for the post column: «H1: <title>» and the description with its call to action (the format the upload
+    reads), plus the older texts this tool may have written there, which can be replaced without --replace-post."""
     title, desc = (spec.get("youtube_title") or "").strip(), (spec.get("youtube_description") or "").strip()
     if not (title and desc):
         return "", []
-    return f"H1: {title}\n{desc}", [desc]
+    # Ours: the description alone (older versions) or any text that starts with this title line.
+    return f"H1: {title}\n{with_cta(spec, desc, lang)}", [desc, f"H1: {title}\n"]
 
 
 def cmd_drive(args):
@@ -772,7 +810,7 @@ def cmd_drive(args):
             result["warnings"] += warns
             row_todo = drive.plan_type(found)
             result["plan_sheet"] = {k: row_todo[k] for k in ("row", "column", "from", "to", "action")}
-            text, ours = youtube_post(spec)
+            text, ours = youtube_post(spec, info["lang"])
             if not text:
                 result["errors"].append("the spec needs 'youtube_title' and 'youtube_description': 'drive' writes them in "
                                         "the post column of the row, where the YouTube upload takes them from")
@@ -812,7 +850,7 @@ def cmd_drive(args):
             drive.set_type(client, post_todo)
             result["sheet_post"] = {k: post_todo[k] for k in ("row", "column", "action")}
             if post_todo["action"] == "set":
-                log(f"row {post_todo['row']} of the plan sheet: «{post_todo['column']}» = youtube_title + youtube_description")
+                log(f"row {post_todo['row']} of the plan sheet: «{post_todo['column']}» = youtube_title + youtube_description + call to action")
         except drive.DriveError as e:
             result["errors"].append(f"files uploaded, but «{post_todo['column']}» of row {post_todo['row']} could not be written: {e}. "
                                     "Paste the spec's title (as «H1: …») and description there by hand.")
