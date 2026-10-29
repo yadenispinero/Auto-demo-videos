@@ -702,6 +702,8 @@ def final_files(spec_path, spec, info):
             files.append(path)
         elif name.endswith(".mp4"):
             errors.append(f"{path} not found: run 'build' first")
+        elif name.endswith(".srt"):
+            errors.append(f"{name} not in {final}: the spec has that subtitle language (run 'subtitles' or 'build')")
         else:
             warnings.append(f"{name} not in {final}: the video goes up without it (run 'build')")
     clips = [os.path.join(info["out"], sc["name"] + ".mp4") for sc in spec["scenes"]]
@@ -710,6 +712,15 @@ def final_files(spec_path, spec, info):
     if old:
         warnings.append(f"{', '.join(old)} older than the clips: run 'build' again if a scene was re-recorded")
     return files, errors, warnings
+
+
+def youtube_post(spec):
+    """Text for the post column: «H1: <title>» and the description (the format the upload reads), plus the older
+    texts this tool may have written there (description alone), which can be replaced without --replace-post."""
+    title, desc = (spec.get("youtube_title") or "").strip(), (spec.get("youtube_description") or "").strip()
+    if not (title and desc):
+        return "", []
+    return f"H1: {title}\n{desc}", [desc]
 
 
 def cmd_drive(args):
@@ -750,28 +761,31 @@ def cmd_drive(args):
     result["plan"] = [{k: it[k] for k in ("name", "action", "mb")} for it in todo["upload"]]
     if args.move_old and loose:
         result["plan_move"] = {"to": args.move_old, "files": loose}
-    row_todo = None
-    if spec.get("plan_row"):
+    row_todo = post_todo = None
+    if drive.PLAN_SHEET:
         try:
-            row_todo = drive.plan_type(client, spec["plan_row"], folder)
+            found = drive.find_row(client, folder, spec.get("plan_row"))
+            result["row"] = found["row"]
+            result["warnings"] += found["warnings"]
+            errs, warns = drive.check_row(found, info["lang"], spec.get("subtitles", []))
+            result["errors"] += errs
+            result["warnings"] += warns
+            row_todo = drive.plan_type(found)
             result["plan_sheet"] = {k: row_todo[k] for k in ("row", "column", "from", "to", "action")}
+            text, ours = youtube_post(spec)
+            if not text:
+                result["errors"].append("the spec needs 'youtube_title' and 'youtube_description': 'drive' writes them in "
+                                        "the post column of the row, where the YouTube upload takes them from")
+            else:
+                post_todo = drive.plan_post(found, text, args.replace_post, ours)
+                result["plan_post"] = {k: post_todo[k] for k in ("row", "column", "action")}
+                if post_todo["action"] == "kept":
+                    result["errors"].append(f"«{post_todo['column']}» of row {post_todo['row']} already has another text: "
+                                            "rerun with --replace-post to write the spec's title and description")
         except drive.DriveError as e:
-            result["warnings"].append(f"plan sheet: the type of the row will not be changed: {e}")
+            result["errors"].append(f"plan sheet: {e}")
     else:
-        result["warnings"].append("no plan_row in the spec: the plan sheet is not touched")
-    post_todo = None
-    if spec.get("plan_row") and row_todo and spec.get("youtube_description"):
-        try:
-            post_todo = drive.plan_post(client, spec["plan_row"], spec["youtube_description"], args.replace_post)
-            result["plan_post"] = {k: post_todo[k] for k in ("row", "column", "action")}
-            if post_todo["action"] == "kept":
-                result["warnings"].append(f"«{post_todo['column']}» of row {post_todo['row']} already has another text: left as it is "
-                                          "(rerun with --replace-post to write the spec's youtube_description)")
-        except drive.DriveError as e:
-            result["warnings"].append(f"plan sheet: the description will not be written: {e}")
-    elif spec.get("plan_row") and not spec.get("youtube_description"):
-        result["warnings"].append("no 'youtube_description' in the spec: the post column is not written, and the YouTube upload "
-                                  "takes the description from there")
+        result["warnings"].append("no plan sheet in config.json: only the files are copied")
     if result["errors"] or args.dry_run:
         finish(result)
     try:
@@ -798,10 +812,10 @@ def cmd_drive(args):
             drive.set_type(client, post_todo)
             result["sheet_post"] = {k: post_todo[k] for k in ("row", "column", "action")}
             if post_todo["action"] == "set":
-                log(f"row {post_todo['row']} of the plan sheet: «{post_todo['column']}» = youtube_description of the spec")
+                log(f"row {post_todo['row']} of the plan sheet: «{post_todo['column']}» = youtube_title + youtube_description")
         except drive.DriveError as e:
             result["errors"].append(f"files uploaded, but «{post_todo['column']}» of row {post_todo['row']} could not be written: {e}. "
-                                    "Paste the spec's youtube_description there by hand.")
+                                    "Paste the spec's title (as «H1: …») and description there by hand.")
     finish(result)
 
 

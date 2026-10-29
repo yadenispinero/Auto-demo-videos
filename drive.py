@@ -18,6 +18,7 @@ import json
 import os
 import re
 import time
+import unicodedata
 
 from config import SETTINGS, local_path
 
@@ -208,33 +209,90 @@ def column(n):
     return name
 
 
-def plan_row(drive, row):
-    """The row of the plan sheet as {header: value} (the Drive scope also reaches the Sheets API)."""
-    if not (PLAN_SHEET and PLAN_TAB):
-        raise DriveError("no plan sheet in config.json (plan.sheet_id and plan.tab)")
-    rng = f"{PLAN_TAB}!1:1"
-    head = drive.call("GET", f"{SHEETS}/{PLAN_SHEET}/values/{rng}").json().get("values", [[]])[0]
-    rng = f"{PLAN_TAB}!{row}:{row}"
-    vals = (drive.call("GET", f"{SHEETS}/{PLAN_SHEET}/values/{rng}").json().get("values") or [[]])[0]
-    return {h.strip(): (vals[i] if i < len(vals) else "") for i, h in enumerate(head) if h.strip()}, head
+def _get(drive, rng):
+    return drive.call("GET", f"{SHEETS}/{PLAN_SHEET}/values/{rng}").json().get("values") or []
 
 
-def plan_type(drive, row, folder):
-    """What `set_type` would do on the row: {row, column, from, to, action} or raises DriveError."""
-    tipo, media = COLUMNS["type"], COLUMNS["media"]
-    if not (tipo and media and VIDEO_TYPE):
-        raise DriveError("config.json has no plan.video_type, plan.columns.type or plan.columns.media")
-    values, head = plan_row(drive, row)
-    for name in (tipo, media):
-        if name not in values:
-            raise DriveError(f"{PLAN_TAB} has no column «{name}»")
-    if folder_id(values[media]) != folder:
-        raise DriveError(f"row {row} of {PLAN_TAB} is not this video: its «{media}» is "
-                         f"«{values[media] or '(empty)'}» (fix plan_row in the spec)")
-    col = column([h.strip() for h in head].index(tipo))
-    return {"row": row, "cell": f"{PLAN_TAB}!{col}{row}", "column": tipo,
-            "from": values[tipo], "to": VIDEO_TYPE,
-            "action": "unchanged" if values[tipo] == VIDEO_TYPE else "set"}
+def norm(text):
+    """Lower case, no accents, single spaces: to compare names typed by people."""
+    text = unicodedata.normalize("NFD", str(text or "")).encode("ascii", "ignore").decode()
+    return " ".join(text.lower().split())
+
+
+def language_code(name):
+    """ISO 639-1 code of a language written in the sheet (a code, or a name of plan.language_names)."""
+    names = {norm(k): v for k, v in PLAN.get("language_names", {}).items()}
+    key = norm(name)
+    return names.get(key) or (key if re.fullmatch(r"[a-z]{2}", key) else None)
+
+
+def find_row(drive, folder, hint=None):
+    """The row of the plan sheet whose media column is `folder`: {row, values, head, warnings}.
+    Rows move when the sheet is sorted, so the spec's plan_row is only a hint."""
+    media = COLUMNS["media"]
+    if not (PLAN_SHEET and PLAN_TAB and media):
+        raise DriveError("no plan sheet in config.json (plan.sheet_id, plan.tab and plan.columns.media)")
+    head = [h.strip() for h in (_get(drive, f"{PLAN_TAB}!1:1") or [[]])[0]]
+    if media not in head:
+        raise DriveError(f"{PLAN_TAB} has no column «{media}»")
+    col = column(head.index(media))
+    cells = _get(drive, f"{PLAN_TAB}!{col}:{col}")
+    rows = [i + 1 for i, c in enumerate(cells) if i and c and folder_id(c[0]) == folder]
+    if not rows:
+        raise DriveError(f"no row of {PLAN_TAB} has this folder in «{media}»: put its link there first")
+    if len(rows) > 1:
+        raise DriveError(f"rows {', '.join(map(str, rows))} of {PLAN_TAB} have this folder in «{media}»: leave it in one")
+    row = rows[0]
+    warnings = [f"the video is in row {row} of {PLAN_TAB}, not {hint} (rows move when the sheet is sorted; "
+                f"plan_row of the spec is only a hint)"] if hint and hint != row else []
+    vals = (_get(drive, f"{PLAN_TAB}!{row}:{row}") or [[]])[0]
+    values = {h: (vals[i] if i < len(vals) else "") for i, h in enumerate(head) if h}
+    return {"row": row, "values": values, "head": head, "warnings": warnings}
+
+
+def check_row(found, lang, subtitles):
+    """Is the row ready for the YouTube upload? (errors, warnings) about languages, channel and document link."""
+    values, errors, warnings = found["values"], [], []
+    langs, channel, doc = COLUMNS.get("languages"), COLUMNS.get("channel"), COLUMNS.get("doc")
+    if langs and langs in values:
+        written = [x.strip() for x in values[langs].split(",") if x.strip()]
+        codes = [language_code(x) for x in written]
+        unknown = [w for w, c in zip(written, codes) if not c]
+        if unknown:
+            errors.append(f"«{langs}» has languages without an ISO code: {', '.join(unknown)} "
+                          "(add them to plan.language_names in config.json)")
+        elif codes != [lang] + list(subtitles):
+            errors.append(f"«{langs}» of row {found['row']} is «{values[langs]}» ({', '.join(codes) or 'empty'}), but the spec "
+                          f"records in {lang} with subtitles {', '.join(subtitles) or '(none)'}: make them match "
+                          "(the first language is the video's, the others are the subtitles)")
+    channels = [norm(c) for c in PLAN.get("channels", [])]
+    if channel and channels and norm(values.get(channel)) not in channels:
+        errors.append(f"«{channel}» of row {found['row']} is «{values.get(channel) or '(empty)'}», not a YouTube channel "
+                      f"of plan.channels ({', '.join(PLAN['channels'])})")
+    link = (values.get(doc) or "").strip() if doc else ""
+    if link and "docs.google.com/document/" not in link:
+        warnings.append(f"«{doc}» of row {found['row']} is not a Google Doc ({link[:60]}): leave it empty; "
+                        "the upload takes title and description from the post column")
+    elif link:
+        warnings.append(f"«{doc}» of row {found['row']} has a Doc: the upload ignores its title and description "
+                        "and uses the post column")
+    return errors, warnings
+
+
+def _cell(found, name):
+    return f"{PLAN_TAB}!{column(found['head'].index(name))}{found['row']}"
+
+
+def plan_type(found):
+    """What `set_type` would do with the row's type: {row, cell, column, from, to, action}."""
+    tipo = COLUMNS["type"]
+    if not (tipo and VIDEO_TYPE):
+        raise DriveError("config.json has no plan.video_type or plan.columns.type")
+    if tipo not in found["values"]:
+        raise DriveError(f"{PLAN_TAB} has no column «{tipo}»")
+    old = found["values"][tipo]
+    return {"row": found["row"], "cell": _cell(found, tipo), "column": tipo, "from": old, "to": VIDEO_TYPE,
+            "action": "unchanged" if old == VIDEO_TYPE else "set"}
 
 
 def set_type(drive, todo):
@@ -244,20 +302,19 @@ def set_type(drive, todo):
         todo["done"] = True
 
 
-def plan_post(drive, row, text, replace=False):
-    """What `set_type` would do with the YouTube description in the «post» column (the upload takes it from there):
-    {row, cell, column, from, to, action}; action 'kept' when it already has another text and not replace."""
+def plan_post(found, text, replace=False, ours=()):
+    """What `set_type` would do with the post column (title and description for the upload):
+    {row, cell, column, from, to, action}. Another text is 'kept' unless replace, or it is one of `ours`
+    (an older text written by this tool)."""
     post = COLUMNS["post"]
     if not post:
         raise DriveError("config.json has no plan.columns.post")
-    values, head = plan_row(drive, row)
-    if post not in values:
+    if post not in found["values"]:
         raise DriveError(f"{PLAN_TAB} has no column «{post}»")
-    col = column([h.strip() for h in head].index(post))
-    old = values[post]
-    action = ("unchanged" if old.strip() == text.strip()
-              else "set" if not old.strip() or replace else "kept")
-    return {"row": row, "cell": f"{PLAN_TAB}!{col}{row}", "column": post, "from": old, "to": text, "action": action}
+    old = found["values"][post].strip()
+    action = ("unchanged" if old == text.strip()
+              else "set" if not old or replace or old in [o.strip() for o in ours] else "kept")
+    return {"row": found["row"], "cell": _cell(found, post), "column": post, "from": old, "to": text, "action": action}
 
 
 def plan(drive, folder, files):

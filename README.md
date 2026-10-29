@@ -7,6 +7,7 @@ for a YouTube upload (an n8n workflow, an Apps Script...) to pick up.
 
 ```
 spec.json ──record──▶ clips/*.mp4 ──build──▶ final/v1.mp4 + v1.thumb.jpg + v1.<lang>.srt + v1.chapters.json ──drive──▶ Drive folder
+                                                                                                          + title and description in the plan sheet
 ```
 
 ## Requirements
@@ -31,7 +32,7 @@ Everything in `config.json` is optional. Without `drive` and `plan` you can stil
 | `drive.key` | Google service account key (JSON). Never in the repo nor in a spec. Also `--key` or `VIDEO_DRIVE_KEY`. |
 | `drive.act_as` | Person the service account acts as (domain-wide delegation, scope `https://www.googleapis.com/auth/drive`). Needed to create files in a personal My Drive. Also `--as` or `VIDEO_DRIVE_AS`. |
 | `drive.videos_folder` | Parent folder of the videos (product folder › video folder). `drive` refuses folders outside it. Also `VIDEO_DRIVE_FOLDER`. |
-| `plan.*` | Optional Google Sheet with one row per video (the spec's `plan_row`): after the upload, `drive` sets `video_type` in the `columns.type` column (after checking that `columns.media` is the video folder) and writes the spec's `youtube_description` in `columns.post`. |
+| `plan.*` | Optional Google Sheet with one row per video. `drive` finds the row by its `columns.media` cell (the video folder; rows move when the sheet is sorted, so the spec's `plan_row` is only a hint), checks it (`columns.languages` = the spec's language and subtitles, `columns.channel` one of `channels`, `columns.doc` empty), then sets `video_type` in `columns.type` and writes the YouTube title and description in `columns.post`. `language_names` maps the names used in the sheet to ISO codes. |
 | `identity.*` | Products CSV, entities CSV, folder of logo copies and the font of the opening, closing and thumbnail. |
 
 Other environment variables: `VIDEO_CONFIG` (another config file), `VIDEO_CACHE` (cache folder), `CHROME`, `FFMPEG`.
@@ -60,7 +61,7 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
 | `video.py subtitles <spec>` | `.srt` per subtitle language and `chapters.json`, from the notes' timings. |
 | `video.py cards <spec>` | Opening, closing and thumbnail, to review them. |
 | `video.py build <spec>` | Final video (opening + scenes + closing, 1920x1080, 30 fps, H.264), thumbnail and subtitles. |
-| `video.py drive <spec>` | Copies the final files to `drive_folder` (new version of existing files, same link; md5 checked). `--dry-run` shows the plan, `--move-old [subfolder]` moves other files away (never deletes), `--replace-post` overwrites the post column. |
+| `video.py drive <spec>` | The hand-off to the upload: checks the row of the plan sheet, copies the final files to `drive_folder` (new version of existing files, same link; md5 checked), sets the row's type and writes `H1: <youtube_title>` + `youtube_description` in its post column. `--dry-run` shows the plan and changes nothing, `--move-old [subfolder]` moves other files away (never deletes), `--replace-post` overwrites a post column with a text it did not write. |
 
 ## The spec
 
@@ -75,8 +76,8 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
   steps that are not recorded, `lead`/`tail` seconds, and `steps`: `wait`, `goto`, `click`, `hover`, `highlight`
   (each also as `*_css`), `type`, `key`, `scroll`, `scroll_to`, `note`, `arrow`, `spotlight`, `badge`, `zoom`
   (and their `un*`), `clear`, `js`, `call`, usually with `after` seconds.
-- `youtube_description` (plain text, one paragraph per line, optional last line `Tags: a, b, c`), `drive_folder`
-  and `plan_row` for the Drive step.
+- `youtube_title` (100 characters at most) and `youtube_description` (plain text, one paragraph per line, optional
+  last line `Tags: a, b, c`), `drive_folder` and `plan_row` (a hint) for the Drive step.
 
 YouTube chapters: the first one at 0:00, at least 3, each 10 s or longer.
 

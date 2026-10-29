@@ -27,8 +27,14 @@ DEFAULTS = {
         "tab": "",
         # Value written in the «type» column of the row after the upload (empty = not written).
         "video_type": "",
-        # Header names of the columns the tool reads or writes.
-        "columns": {"type": "", "media": "", "post": ""},
+        # Header names of the columns the tool reads or writes. The row is found by its «media» column (the video
+        # folder); «languages», «channel» and «doc» are only checked before the upload (empty = not checked).
+        "columns": {"type": "", "media": "", "post": "", "languages": "", "channel": "", "doc": ""},
+        # Accepted values of the «channel» column (YouTube channels). Empty = not checked.
+        "channels": [],
+        # Language names used in the «languages» column -> ISO 639-1 (codes like "en" are always accepted).
+        "language_names": {"english": "en", "spanish": "es", "german": "de", "french": "fr", "italian": "it",
+                           "portuguese": "pt", "dutch": "nl", "polish": "pl", "catalan": "ca"},
     },
     # Identity of products and entities for the opening, closing and thumbnail (see examples/).
     "identity": {

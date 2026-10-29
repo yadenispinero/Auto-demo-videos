@@ -169,7 +169,7 @@ def rpc(path, params, sid=None):
         body = json.load(r)
     if body.get("error"):
         raise RecordError("Odoo: " + body["error"]["data"]["message"])
-    return r, body["result"]
+    return r, body.get("result")  # Odoo leaves "result" out when the method returns None
 
 
 # Fake mouse pointer (headless Chrome draws none), red boxes and the visual marks of the silent videos

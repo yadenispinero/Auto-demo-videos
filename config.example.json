@@ -9,7 +9,17 @@
     "sheet_id": "YOUR_PLAN_SHEET_ID",
     "tab": "Videos",
     "video_type": "YouTube video",
-    "columns": {"type": "Type", "media": "Media folder", "post": "Description"}
+    "columns": {
+      "type": "Type",
+      "media": "Media folder",
+      "post": "Description",
+      "languages": "Languages",
+      "channel": "Channel",
+      "doc": "Document"
+    },
+    "channels": [
+      "My YouTube channel"
+    ]
   },
   "identity": {
     "products_csv": "examples/products.csv",

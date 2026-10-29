@@ -3,6 +3,7 @@
  "title": "Find a contact and open its card in Odoo Contacts",
  "thumbnail_title": {"en": "Find a contact in seconds", "es": "Encuentra un contacto en segundos"},
  "product": "contacts",
+ "youtube_title": "Odoo Contacts: find a contact and open its card in seconds",
  "youtube_description": "How to search a contact in Odoo Contacts and open its card.\nMore: https://yadenisp.wordpress.com/\nTags: Odoo, Contacts, CRM",
  "lang": "en",
  "subtitles": ["es"],

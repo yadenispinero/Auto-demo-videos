@@ -23,7 +23,7 @@
     "plan_row": {
       "type": "integer",
       "minimum": 2,
-      "description": "Row of the video in the plan sheet (plan.* in config.json), if you use one."
+      "description": "Row of the video in the plan sheet (plan.* in config.json), if you use one. Only a hint: 'video.py drive' finds the row by its media column (the video folder), because rows move when the sheet is sorted."
     },
     "lang": {
       "$ref": "#/$defs/langCode",
@@ -118,6 +118,12 @@
     "thumbnail_title": {
       "$ref": "#/$defs/text",
       "description": "Video title on the YouTube thumbnail (default: 'title'). Per language like the notes, or a plain string."
+    },
+    "youtube_title": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 100,
+      "description": "YouTube title in the recording language (YouTube allows 100 characters). 'video.py drive' writes it, as the line «H1: <title>», at the top of the post column of the video's row, followed by youtube_description."
     },
     "youtube_description": {
       "type": "string",
