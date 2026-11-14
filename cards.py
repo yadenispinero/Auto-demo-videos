@@ -6,9 +6,12 @@ colour of each entity). They can be tabs of a Google Sheet downloaded as CSV (Fi
 The spec only says which product it is ("product": its "Module" or "Product" value). Spanish headers (the ones of
 the original sheet) are accepted too: see PRODUCT_COLUMNS and ENTITY_COLUMNS.
 
-  opening  <out>/<video>-00-opening.png  1920x1080  product name + the feature shown (spec "feature") + entity
+  opening  <out>/<video>-00-opening.png  1920x1080  one of three compositions (spec "composition", default A):
+           A Question   product name, accent rule, the feature (a question or problem) big, entity
+           B Concept    product logo on the left; product name, rule, the idea big and a short "subline" on the right
+           C Guide      label ("Step-by-step guide"), product name, rule, the task big, "version" line, entity
   closing  <out>/<video>-99-closing.png  1920x1080  product logo + store link + entity name and web
-  thumb    <final>/<video>.thumb.jpg     1280x720   logo + product name + video title (YouTube thumbnail)
+  thumb    <final>/<video>.thumb.jpg     1280x720   the same composition as the opening, with the thumbnail title
 
 Used by video.py (cards, build). Colours, sizes and layout of the three screens are in CSS below.
 """
@@ -191,14 +194,28 @@ body { background: var(--bg); color: var(--text); font-family: 'Open Sans', Aria
 .logo img { width: 100%; height: 100%; object-fit: contain; filter: drop-shadow(0 8px 22px rgba(0, 0, 0, .14)); }
 .link { margin-top: 60px; font-weight: 600; font-size: 36px; color: var(--text);
         border-bottom: 6px solid var(--accent); padding-bottom: 8px; }
-/* thumbnail (1280x720) */
-.thumb { flex-direction: row; text-align: left; gap: 60px; padding: 0 80px; }
-.thumb .logo { width: 260px; height: 260px; flex: none; }
-.thumb .product { font-size: 44px; }
-.thumb .rule { margin: 18px 0 22px; width: 110px; height: 7px; }
-.thumb .title { font-weight: 700; font-size: 56px; line-height: 1.15; }
-.thumb .entity { font-size: 28px; margin-top: 26px; }
+/* B Concept: product logo on the left, text aligned left on the right */
+.concept { flex-direction: row; align-items: center; text-align: left; gap: 72px; padding: 0 110px; }
+.concept .logo { width: 300px; height: 300px; flex: none; }
+.concept .text { display: flex; flex-direction: column; align-items: flex-start; }
+.concept .feature { max-width: 820px; }
+.subline { margin-top: 22px; font-weight: 400; font-size: 32px; line-height: 1.35; max-width: 820px; opacity: .9; }
+.concept .maker { margin-top: 40px; }
+/* C Guide: a short label above, the version line under the task */
+.label { font-weight: 600; font-size: 26px; letter-spacing: .06em; text-transform: uppercase;
+         border: 3px solid var(--accent); border-radius: 30px; padding: 8px 26px; margin-bottom: 34px; }
+.version { margin-top: 22px; font-weight: 400; font-size: 28px; opacity: .8; }
+/* thumbnail (1280x720 at scale 1): the opening composition with bigger text, read at small sizes */
+.thumbnail .feature { font-size: 74px; max-width: 1120px; }
+.thumbnail .product { font-size: 50px; }
+.thumbnail.concept .logo { width: 330px; height: 330px; }
+.thumbnail.concept .feature { font-size: 68px; max-width: 700px; }
+.thumbnail .subline, .thumbnail .version { display: none; }
 """
+
+COMPOSITIONS = ("A", "B", "C")
+# Label of composition C per language (the spec's "label" replaces it).
+GUIDE_LABEL = {"es": "Guía paso a paso", "en": "Step-by-step guide", "de": "Schritt-für-Schritt-Anleitung"}
 
 
 def page(body, product, scale):
@@ -213,15 +230,32 @@ def capitalized(text):
     return text[:1].upper() + text[1:]
 
 
-def opening_html(p, entity_logo, feature=""):
+def maker_html(p, entity_logo):
+    return (f"<div class='maker'><img src='file://{entity_logo}'>"
+            f"<div class='entity'>{html.escape(p['Entity'])}</div></div>")
+
+
+def opening_html(p, entity_logo, feature="", composition="A", logo="", subline="", version="", label="",
+                 thumbnail=False):
+    """Opening screen (or, with thumbnail=True, the thumbnail) in composition A, B or C (manual 8.3.3)."""
+    name = html.escape(p["Product name"])
+    extra = " thumbnail" if thumbnail else ""
     if not feature:
-        return (f"<div class='wrap'><div class='product'>{html.escape(p['Product name'])}</div>"
-                f"<div class='rule'></div><div class='maker'><img src='file://{entity_logo}'>"
-                f"<div class='entity'>{html.escape(p['Entity'])}</div></div></div>")
-    return (f"<div class='wrap opening'><div class='product'>{html.escape(p['Product name'])}</div>"
-            f"<div class='rule'></div><div class='feature'>{html.escape(capitalized(feature))}</div>"
-            f"<div class='maker'><img src='file://{entity_logo}'>"
-            f"<div class='entity'>{html.escape(p['Entity'])}</div></div></div>")
+        return (f"<div class='wrap'><div class='product'>{name}</div>"
+                f"<div class='rule'></div>{maker_html(p, entity_logo)}</div>")
+    big = f"<div class='feature'>{html.escape(capitalized(feature))}</div>"
+    if composition == "B":
+        sub = f"<div class='subline'>{html.escape(subline)}</div>" if subline else ""
+        return (f"<div class='wrap opening concept{extra}'><div class='logo'><img src='file://{logo}'></div>"
+                f"<div class='text'><div class='product'>{name}</div><div class='rule'></div>{big}{sub}"
+                f"{maker_html(p, entity_logo)}</div></div>")
+    if composition == "C":
+        top = f"<div class='label'>{html.escape(label)}</div>" if label else ""
+        ver = f"<div class='version'>{html.escape(version)}</div>" if version else ""
+        return (f"<div class='wrap opening guide{extra}'>{top}<div class='product'>{name}</div>"
+                f"<div class='rule'></div>{big}{ver}{maker_html(p, entity_logo)}</div>")
+    return (f"<div class='wrap opening{extra}'><div class='product'>{name}</div>"
+            f"<div class='rule'></div>{big}{maker_html(p, entity_logo)}</div>")
 
 
 def closing_html(p, logo, entity_logo):
@@ -230,13 +264,6 @@ def closing_html(p, logo, entity_logo):
             f"<div class='link'>{html.escape(store_label(p['Store link']))}</div>"
             f"<div class='by'><img src='file://{entity_logo}'><span>{html.escape(e['Entity'])}</span>"
             f"<span class='dot'>·</span><span>{html.escape(store_label(e['Web']))}</span></div></div>")
-
-
-def thumb_html(p, logo, title):
-    return (f"<div class='wrap thumb'><div class='logo'><img src='file://{logo}'></div><div>"
-            f"<div class='product'>{html.escape(p['Product name'])}</div><div class='rule'></div>"
-            f"<div class='title'>{html.escape(title)}</div>"
-            f"<div class='entity'>{html.escape(p['Entity'])}</div></div></div>")
 
 
 def render(pages, port=9336):
@@ -302,13 +329,20 @@ def build(spec_path, spec, out_dir, final_dir, log=print):
     pick = lambda v: (v.get(lang) or next(iter(v.values()), "")) if isinstance(v, dict) else (v or "")
     feature = capitalized(pick(spec.get("feature")))
     title = pick(spec.get("thumbnail_title")) or feature or spec.get("title") or product["Product name"]
+    composition = (spec.get("composition") or "A").upper()
+    if composition not in COMPOSITIONS:
+        raise CardError(f"composition '{composition}': use A (question), B (concept) or C (guide)")
+    layout = {"composition": composition, "logo": logo, "subline": pick(spec.get("subline")),
+              "version": spec.get("version", ""),
+              "label": pick(spec.get("label")) or (GUIDE_LABEL.get(lang, GUIDE_LABEL["en"]) if composition == "C" else "")}
     files = {"opening": os.path.join(out_dir, f"{video}-00-opening.png"),
              "closing": os.path.join(out_dir, f"{video}-99-closing.png"),
              "thumb_png": os.path.join(CACHE, f"{video}.thumb.png")}
     os.makedirs(CACHE, exist_ok=True)
-    render([(page(opening_html(product, entity_logo, feature), product, 1.5), files["opening"], 1280, 720, 1.5),
+    render([(page(opening_html(product, entity_logo, feature, **layout), product, 1.5), files["opening"], 1280, 720, 1.5),
             (page(closing_html(product, logo, entity_logo), product, 1.5), files["closing"], 1280, 720, 1.5),
-            (page(thumb_html(product, logo, title), product, 1), files["thumb_png"], 1280, 720, 1)])
-    log(f"screens of {product['Product name']} ({product['Entity']}): "
+            (page(opening_html(product, entity_logo, capitalized(title), thumbnail=True, **layout), product, 1),
+             files["thumb_png"], 1280, 720, 1)])
+    log(f"screens of {product['Product name']} ({product['Entity']}), composition {composition}: "
         f"{os.path.basename(files['opening'])}, {os.path.basename(files['closing'])}, thumbnail")
-    return {"product": product["Product name"], "entity": product["Entity"], **files}
+    return {"product": product["Product name"], "entity": product["Entity"], "composition": composition, **files}
