@@ -123,6 +123,29 @@
       "$ref": "#/$defs/text",
       "description": "Video title on the YouTube thumbnail (default: 'feature', then 'title'). Per language like the notes, or a plain string."
     },
+    "composition": {
+      "type": "string",
+      "enum": [
+        "A",
+        "B",
+        "C"
+      ],
+      "default": "A",
+      "description": "Master composition of the opening screen and the thumbnail (Merchise manual 8.3.3), chosen by the goal of the video: A = Question (a concrete doubt or problem of the user in 'feature'), B = Concept (a benefit or idea in 'feature', product logo on the left, optional 'subline'), C = Guide (a step-by-step procedure: 'label' above, the task in 'feature', optional 'version' line). Take it from the [COMPOSICIÓN: …] tag of the video's row in the plan sheet."
+    },
+    "subline": {
+      "$ref": "#/$defs/text",
+      "description": "Composition B: one short line under the idea that makes it concrete (about 80 characters at most). Not shown on the thumbnail."
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Composition C: small line under the task with the Odoo version or module, e.g. 'Odoo 19 · Useful Message'. Not shown on the thumbnail."
+    },
+    "label": {
+      "$ref": "#/$defs/text",
+      "description": "Composition C: short label above the product name (default per language: 'Guía paso a paso', 'Step-by-step guide', 'Schritt-für-Schritt-Anleitung')."
+    },
     "youtube_title": {
       "type": "string",
       "minLength": 1,

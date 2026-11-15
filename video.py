@@ -218,6 +218,15 @@ def check_spec(spec_path, lang_override=None):
                           "video demonstrates (e.g. \"Create a project task from a vendor message\")")
         elif len(text) > 70:
             warnings.append(f"feature: {len(text)} characters; over about 60 it takes three lines on the opening screen")
+        composition = str(spec.get("composition") or "A").upper()
+        if composition not in ("A", "B", "C"):
+            errors.append(f"composition: '{spec.get('composition')}' is not A (question), B (concept) or C (guide)")
+        if spec.get("subline") and composition != "B":
+            warnings.append("subline: only shown with composition B")
+        if (spec.get("version") or spec.get("label")) and composition != "C":
+            warnings.append("version/label: only shown with composition C")
+        if composition == "C" and not spec.get("version"):
+            warnings.append("version: composition C usually shows the Odoo version or module under the task")
     elif spec.get("product"):
         warnings.append("no 'intro' and a hand-made or missing closing: the video does not show the product's identity "
                         "(add \"intro\": {} and \"closing\": {} to generate them from the products CSV)")
@@ -615,6 +624,7 @@ def cmd_new(args):
             "title": args.title or "TODO: what the video shows",
             "product": args.product or "TODO_module",
             "feature": "TODO: the specific function the video demonstrates",
+            "composition": "A",
             "lang": args.lang, "subtitles": subtitles}
     if args.plan_row:
         spec["plan_row"] = args.plan_row

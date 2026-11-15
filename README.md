@@ -70,6 +70,10 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
 - `title`, `product` (its `Module` or `Product` in the products CSV), `feature` (the specific function the video
   demonstrates, shown big on the opening screen; required with a generated opening) and `thumbnail_title`
   (default: `feature`).
+- `composition`: the layout of the opening and the thumbnail, from the goal of the video (Merchise manual 8.3.3):
+  `A` question (default; `feature` is the doubt or problem), `B` concept (`feature` is the idea, product logo on the
+  left, optional `subline`), `C` guide (`feature` is the task, a `label` such as "Step-by-step guide" above and an
+  optional `version` line). Take it from the `[COMPOSICIÓN: …]` tag of the video's row in the plan sheet.
 - `lang` (recording language) and `subtitles` (other languages). Texts are `{"en": ..., "es": ...}` with every
   language, or a plain string when there are no subtitles.
 - `demo`: `base` (local Odoo URL), `db`, optional `rebuild` script.
@@ -85,8 +89,8 @@ YouTube chapters: the first one at 0:00, at least 3, each 10 s or longer.
 
 ## Product identity
 
-The opening shows the product name, the feature the video demonstrates and the entity that makes it; the closing, the product logo, its store link and
-the entity's web; the thumbnail, logo, product name and video title. They come from two CSV (they can be tabs of a
+The opening shows, in one of the three compositions, the product name, the feature the video demonstrates and the entity that makes it; the closing, the product logo, its store link and
+the entity's web; the thumbnail uses the opening's composition with the thumbnail title. They come from two CSV (they can be tabs of a
 Google Sheet, *File › Download › CSV*); see `examples/` for the columns (Spanish headers of the original sheet are
 accepted too, see `cards.py`). A logo can be a local path, a public URL or
 a Google Drive link; for a Drive file shared with people (not by link), save a copy as `<logos_dir>/<Drive id>.png`.
