@@ -1,8 +1,11 @@
 """Local settings of the video tool.
 
-They live in config.json next to the scripts (or the file in the variable VIDEO_CONFIG). That file is yours and
-stays out of the repo: copy config.example.json and fill it in. Without it the tool still records and builds
-videos; only `drive` (Drive folder) and the plan sheet need it. Environment variables win over the file:
+They live in config.json next to the scripts, or in the file named by the variable VIDEO_CONFIG — so one copy of
+the tool can serve several workspaces, each with its own config. That file is yours and stays out of the repo:
+copy config.example.json and fill it in. Without it the tool still records and builds videos; only `drive`
+(Drive folder) and the plan sheet need it. A relative path in the file is resolved against the folder of the
+config file; when nothing exists there, against the folder of the scripts (so the bundled fonts and examples
+keep working). Environment variables win over the file:
 VIDEO_DRIVE_KEY (drive.key), VIDEO_DRIVE_AS (drive.act_as), VIDEO_DRIVE_FOLDER (drive.videos_folder).
 """
 
@@ -82,10 +85,17 @@ def load():
     return cfg
 
 
+CONFIG_DIR = os.path.dirname(os.path.abspath(path())) if os.path.isfile(path()) else HERE
+
+
 def local_path(value):
-    """A path of the config: ~ expanded, relative to the folder of the scripts."""
+    """A path of the config: ~ expanded. A relative path is resolved against the folder of the config file;
+    when nothing exists there, against the folder of the scripts (bundled fonts and examples)."""
     value = os.path.expanduser(value or "")
-    return value if os.path.isabs(value) else os.path.join(HERE, value)
+    if os.path.isabs(value):
+        return value
+    in_config = os.path.join(CONFIG_DIR, value)
+    return in_config if os.path.exists(in_config) else os.path.join(HERE, value)
 
 
 SETTINGS = load()

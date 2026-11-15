@@ -96,6 +96,27 @@ accepted too, see `cards.py`). A logo can be a local path, a public URL or
 a Google Drive link; for a Drive file shared with people (not by link), save a copy as `<logos_dir>/<Drive id>.png`.
 The default font is Open Sans (`fonts/`).
 
+## One tool, many workspaces
+
+The scripts can live in one folder and serve several projects. Keep your real data (CSVs, logos, specs,
+generated clips) in each project's own workspace and point the tool at it:
+
+```bash
+VIDEO_CONFIG=/path/to/workspace/config.json python3 /path/to/Auto-demo-videos/video.py cards <spec>
+```
+
+Relative paths inside that config resolve against the config file's folder, so `logos_dir: "logos"` means
+`<workspace>/logos`; anything not found there (the font, the examples) falls back to the scripts' folder.
+Outputs are written next to each spec, so results stay in the workspace. Only generic demos and examples
+belong in this repository.
+
+## Companion tools
+
+- `shoot.py` — store screenshots of an Odoo module from a local demo, with headless Chrome (CDP).
+- `build_index.py` — the Odoo Apps store page (`static/description/index.html`) of a module, from a content file.
+
+Both read a spec/content file that lives in your workspace, never in the module's repository.
+
 ## Status
 
 Done: `new`, `check`, `demo`, `record`, `subtitles`, `cards`, `build`, `drive`.

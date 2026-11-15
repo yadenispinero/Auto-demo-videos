@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy to config.json (it stays out of the repo) and fill it in. Everything is optional: without 'drive' and 'plan' the tool still records and builds videos. See config.py.",
+  "_comment": "Copy to config.json next to the scripts, or anywhere (e.g. your workspace) and point VIDEO_CONFIG at it; relative paths resolve against this file's folder. It stays out of the repo. Fill it in. Everything is optional: without 'drive' and 'plan' the tool still records and builds videos. See config.py.",
   "drive": {
     "key": "~/.config/video-tool/drive-service-account.json",
     "act_as": "person@example.com",
