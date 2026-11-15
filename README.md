@@ -117,7 +117,10 @@ the entity's web; the thumbnail uses the opening's composition with the thumbnai
 Google Sheet, *File › Download › CSV*); see `examples/` for the columns (Spanish headers of the original sheet are
 accepted too, see `cards.py`). A logo can be a local path, a public URL or
 a Google Drive link; for a Drive file shared with people (not by link), save a copy as `<logos_dir>/<Drive id>.png`.
-The default font is Open Sans (`fonts/`).
+The default font is Open Sans (`fonts/`). The notes, arrows and step badges drawn over the recording use the font of
+the entity that makes the video (the spec's `product`): put a `.ttf`, `.otf` or `.woff2` file in the optional
+`Font file` column of the entities CSV (a path, like the logos). Empty = `identity.font`; a spec without `product`
+also uses `identity.font`.
 
 ## One tool, many workspaces
 

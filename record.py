@@ -190,9 +190,9 @@ HELPERS = r"""
     .rec-arrow svg { width: 100%; height: 100%; animation: rec-nudge 1s ease-in-out infinite; }
     @keyframes rec-nudge { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(10px); } }
     .rec-badge { width: 38px; height: 38px; border-radius: 50%; background: #e03131; color: #fff; text-align: center;
-                 font: 700 21px/38px system-ui, sans-serif; box-shadow: 0 0 0 3px #fff, 0 2px 6px rgba(0, 0, 0, .35); }
+                 font: 700 21px/38px 'Rec Notes', system-ui, sans-serif; box-shadow: 0 0 0 3px #fff, 0 2px 6px rgba(0, 0, 0, .35); }
     .rec-note { max-width: 430px; padding: 14px 18px; border-radius: 10px; background: #fff; color: #1d2433;
-                font: 500 20px/1.35 system-ui, sans-serif; white-space: pre-line;
+                font: 500 20px/1.35 'Rec Notes', system-ui, sans-serif; white-space: pre-line;
                 box-shadow: 0 6px 24px rgba(0, 0, 0, .28); border-left: 6px solid #e03131; }
     .rec-note.rec-caption { max-width: 960px; text-align: center; }
     .o_menu_systray .badge, .o_menu_systray .o-mail-ActivityMenu-counter { display: none !important; }
@@ -359,6 +359,43 @@ HELPERS = r"""
 """
 
 
+# Font of the notes and step badges: the one of the entity that makes the video (column "Font file" of the entities
+# CSV; empty = identity.font of config.json). It is loaded into every page as @font-face "Rec Notes" (a data URL,
+# because a http page cannot read file:// URLs); if it is missing the marks fall back to the system font.
+NOTES_FONT_JS = ""
+
+
+def notes_font_js(spec, log=print):
+    """JS that loads the notes font of the spec's entity into the page ("" when the spec has no 'product')."""
+    import cards
+
+    path = cards.FONT
+    if spec.get("product"):
+        try:
+            path = cards.entity_font(cards.find_product(spec["product"])["entity"])
+        except cards.CardError as e:
+            raise RecordError(str(e))
+    if not os.path.isfile(path):
+        raise RecordError(f"notes font not found: {path}")
+    kind = {"ttf": "truetype", "otf": "opentype", "woff": "woff", "woff2": "woff2"}.get(path.rsplit(".", 1)[-1].lower())
+    if not kind:
+        raise RecordError(f"notes font {path}: use a .ttf, .otf, .woff or .woff2 file")
+    data = base64.b64encode(open(path, "rb").read()).decode()
+    log(f"notes font: {os.path.basename(path)}")
+    css = ("@font-face { font-family: 'Rec Notes'; font-weight: 100 900; "
+           f"src: url(data:font/{kind.replace('truetype', 'ttf').replace('opentype', 'otf')};base64,{data}) format('{kind}'); }}")
+    return ("(async () => { if (!document.getElementById('rec-font')) { const s = document.createElement('style'); "
+            f"s.id = 'rec-font'; s.textContent = {json.dumps(css)}; document.head.appendChild(s); }} "
+            "await document.fonts.load('500 20px \"Rec Notes\"'); return true; })()")
+
+
+def install(ws):
+    """Load the notes font and the marks into the current page (again after every page load)."""
+    if NOTES_FONT_JS:
+        ws.js(NOTES_FONT_JS)
+    ws.js(HELPERS)
+
+
 def element_point(ws, step, key, css_key):
     expr = "(() => { const e = REC.el(%s, %s, %s, %d); return e ? REC.center(e) : null; })()" % (
         json.dumps(screen_text(step.get(key), key)), json.dumps(step.get(css_key)), json.dumps(step.get("within")),
@@ -429,13 +466,13 @@ def end_note(ctx):
 
 def run(ws, step, sid, ctx):
     """Run one step. ctx: {"lang": recording language, "notes": [{"text", "start", "end"}] of the scene}."""
-    ws.js(HELPERS)
+    install(ws)
     if "goto" in step:
         end_note(ctx)  # the page reload takes the marks away
         STATE["paused"], start = True, time.time()
         ws.call("Page.navigate", url=BASE + step["goto"])
         time.sleep(step.get("load", 5))
-        ws.js(HELPERS)
+        install(ws)
         STATE["offset"] += time.time() - start
         STATE["paused"] = False
     elif "wait" in step:
@@ -566,10 +603,11 @@ def record(spec_path, base, db, login="admin", password="admin", only=None, keep
     """Record the scenes of a spec. Returns [{"scene", "file", "seconds", "frames", "notes"}] per recorded clip.
 
     lang / out override the spec's "lang" and "out" (e.g. a test take in another language in another folder)."""
-    global BASE, FFMPEG, LANG
+    global BASE, FFMPEG, LANG, NOTES_FONT_JS
     BASE = base.rstrip("/")
     FFMPEG = find_ffmpeg()
     spec = json.load(open(spec_path))
+    NOTES_FONT_JS = notes_font_js(spec, log)
     out_dir = os.path.join(os.path.dirname(os.path.abspath(spec_path)), out or spec.get("out", "clips"))
     os.makedirs(out_dir, exist_ok=True)
     names = [scene["name"] for scene in spec["scenes"]]
@@ -623,7 +661,7 @@ def record(spec_path, base, db, login="admin", password="admin", only=None, keep
                 continue
             ws.call("Page.navigate", url=BASE + scene["path"])
             time.sleep(scene.get("load", 6))
-            ws.js(HELPERS)
+            install(ws)
             ctx = {"lang": lang, "notes": []}
             for step in scene.get("setup", []):
                 run(ws, step, sid, ctx)
