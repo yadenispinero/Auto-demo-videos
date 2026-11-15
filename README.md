@@ -164,3 +164,10 @@ YouTube channel with translated titles and descriptions, then writes the result 
 
 [MIT](LICENSE) © 2026 Yadenis Piñero. The Open Sans font in `fonts/` is under the SIL Open Font License
 ([fonts/OFL.txt](fonts/OFL.txt)). Odoo is a trademark of Odoo S.A.; this project is not affiliated with it.
+
+### Missing definitions
+
+The scripts read only the products and entities tables (exports of the identity tables), never the identity manual.
+`video.py check` lists, in one go, every definition the screens need that is missing or invalid in those tables
+(product colours, logo, entity web, text colour, logo files, font file), each as `missing definition: ...` with the
+table and column to fill. Fix them in the tables, not in the scripts.

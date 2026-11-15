@@ -135,6 +135,11 @@ def check_spec(spec_path, lang_override=None):
                 errs, _ = schema_errors(schema, step, sub=actions[found[0]], prefix=place)
                 errors += errs
 
+    if spec.get("product"):
+        sys.path.insert(0, HERE)
+        import cards
+        errors += [f"missing definition: {m}" for m in cards.audit(spec["product"])]
+
     lang = spec.get("lang", "es")
     subtitles = spec.get("subtitles", [])
     langs = [lang] + [l for l in subtitles if l != lang]
