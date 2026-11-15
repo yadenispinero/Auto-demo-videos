@@ -70,10 +70,10 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
 - `title`, `product` (its `Module` or `Product` in the products CSV), `feature` (the specific function the video
   demonstrates, shown big on the opening screen; required with a generated opening) and `thumbnail_title`
   (default: `feature`).
-- `composition`: the layout of the opening and the thumbnail, from the goal of the video (Merchise manual 8.3.3):
+- `composition`: the layout of the opening and the thumbnail, from the goal of the video:
   `A` question (default; `feature` is the doubt or problem), `B` concept (`feature` is the idea, product logo on the
   left, optional `subline`), `C` guide (`feature` is the task, a `label` such as "Step-by-step guide" above and an
-  optional `version` line). Take it from the `[COMPOSICIÓN: …]` tag of the video's row in the plan sheet.
+  optional `version` line).
 - `lang` (recording language) and `subtitles` (other languages). Texts are `{"en": ..., "es": ...}` with every
   language, or a plain string when there are no subtitles.
 - `demo`: `base` (local Odoo URL), `db`, optional `rebuild` script.
@@ -112,8 +112,6 @@ It is one piece of a larger publishing process I designed and automated: the pla
 Google Sheet, this tool produces the video and drops it in Drive, and an n8n workflow uploads it to the right
 YouTube channel with translated titles and descriptions, then writes the result back to the plan.
 
-If your team has a repetitive process like this (content, reporting, data entry between systems) and you want it
-mapped, simplified and automated end to end, I can help: [yadenisp.wordpress.com](https://yadenisp.wordpress.com/).
 
 ## License
 
