@@ -77,7 +77,10 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
 - `lang` (recording language) and `subtitles` (other languages). Texts are `{"en": ..., "es": ...}` with every
   language, or a plain string when there are no subtitles.
 - `demo`: `base` (local Odoo URL), `db`, optional `rebuild` script.
-- `intro`, `closing`: generated from the product's identity (or `closing.image` for a hand-made one).
+- `intro`, `closing`: generated from the product's identity, or replaced by something made elsewhere — `closing.image`
+  for a hand-made image, or `clip` (`intro.clip`, `closing.clip`) for a video exported from any editor; a clip keeps its
+  own length. `thumbnail`: a hand-made 1280x720 image (otherwise it follows the generated opening, or a frame of the
+  opening clip).
 - `scenes`: `name` (`v1-01-word`, also the clip name), `path` (Odoo URL), optional `chapter`, `setup`/`post`
   steps that are not recorded, `lead`/`tail` seconds, and `steps`: `wait`, `goto`, `click`, `hover`, `highlight`
   (each also as `*_css`), `type`, `key`, `scroll`, `scroll_to`, `note`, `arrow`, `spotlight`, `badge`, `zoom`
@@ -86,6 +89,26 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
   last line `Tags: a, b, c`), `drive_folder` and `plan_row` (a hint) for the Drive step.
 
 YouTube chapters: the first one at 0:00, at least 3, each 10 s or longer.
+
+## Two ways to make the opening and the closing
+
+Both end the same way — `build` joins opening + recorded scenes + closing — and differ only in where the opening and
+the closing come from:
+
+1. **Generated** (default): `intro: {}` / `closing: {}` render them from the product's identity (see below).
+2. **Made in a video editor** (for example, a template in Google Vids): export each as an mp4 and point to it:
+
+   ```json
+   "intro":   {"clip": "clips/v3-00-opening.mp4"},
+   "closing": {"clip": "clips/v3-99-closing.mp4"}
+   ```
+
+   Each one keeps its own length, so the subtitle and chapter times already include them. With both as clips the spec
+   does not need `product` or `feature`. You can also mix: a clip opening with a generated closing, or the reverse.
+   Add `"thumbnail": "clips/v3-thumb.png"` if you made the thumbnail in the editor too; without it the thumbnail is
+   a frame of the opening clip.
+
+The scenes are recorded the same way in both (`record`).
 
 ## Product identity
 
