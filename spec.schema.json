@@ -131,7 +131,7 @@
         "C"
       ],
       "default": "A",
-      "description": "Master composition of the opening screen and the thumbnail (Merchise manual 8.3.3), chosen by the goal of the video: A = Question (a concrete doubt or problem of the user in 'feature'), B = Concept (a benefit or idea in 'feature', product logo on the left, optional 'subline'), C = Guide (a step-by-step procedure: 'label' above, the task in 'feature', optional 'version' line). Take it from the [COMPOSICIÓN: …] tag of the video's row in the plan sheet."
+      "description": "Master composition of the opening screen and the thumbnail, chosen by the goal of the video: A = Question (a concrete doubt or problem of the user in 'feature'), B = Concept (a benefit or idea in 'feature', product logo on the left, optional 'subline'), C = Guide (a step-by-step procedure: 'label' above, the task in 'feature', optional 'version' line)."
     },
     "subline": {
       "$ref": "#/$defs/text",
