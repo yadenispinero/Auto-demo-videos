@@ -42,7 +42,8 @@ PRODUCT_COLUMNS = {"Product": ["Producto"], "Product name": ["Nombre del product
                    "Entity": ["Entidad que lo produce"], "Module": ["Módulo técnico"],
                    "Store link": ["Link tienda / compra"], "Logo": ["Logo del producto"],
                    "Accent colour": ["Color identificativo"], "Background colour": ["Color de fondo"]}
-ENTITY_COLUMNS = {"Entity": ["Entidad"], "Web": [], "Video logo": ["Logo para vídeos"], "Text colour": ["Color de texto"]}
+ENTITY_COLUMNS = {"Entity": ["Entidad"], "Web": [], "Video logo": ["Logo para vídeos"], "Text colour": ["Color de texto"],
+                  "Font file": ["Archivo de fuente"]}
 # Columns the screens need (the CSV can have more).
 REQUIRED = ["Product name", "Entity", "Store link", "Logo", "Accent colour", "Background colour"]
 # The text colour and logo of the entity are only in the entities CSV (not repeated per product).
@@ -108,6 +109,18 @@ def find_entity(name, path=ENTITIES_CSV):
     if not HEX.match(row["Text colour"]):
         raise CardError(f"entity '{name}': Text colour must be a #RRGGBB colour (entities CSV)")
     return row
+
+
+def entity_font(entity):
+    """Font file of an entity row: its optional "Font file" column (a path like the logo ones) or, when empty,
+    identity.font of the config."""
+    name = entity.get("Font file", "")
+    if not name:
+        return FONT
+    path = local_path(name)
+    if not os.path.isfile(path):
+        raise CardError(f"entity '{entity['Entity']}': font file not found: {path}")
+    return path
 
 
 LOGOS = local_path(SETTINGS["identity"]["logos_dir"])
