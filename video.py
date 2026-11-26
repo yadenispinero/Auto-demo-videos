@@ -792,8 +792,8 @@ def final_files(spec_path, spec, info):
 
 def with_cta(spec, desc, lang):
     """The description with the call to action (identity.cta of config.json) in place of its line with the
-    product's store link (or, without one, before the tags line). The description carries no addresses (links go
-    in the video's comments): lines with an e-mail address are left out and web addresses are removed."""
+    product's store link (or, without one, before the tags line). Lines with an e-mail address are left out:
+    the call to action sends people to the entity's website."""
     from config import SETTINGS
 
     template = SETTINGS["identity"].get("cta", {}).get(lang) or SETTINGS["identity"].get("cta", {}).get("en")
@@ -804,10 +804,7 @@ def with_cta(spec, desc, lang):
 
     product = cards.find_product(spec["product"])
     store, web = product["Store link"], product["entity"]["Web"]
-    host = (re.match(r"^https?://([^/]+)", store or "") or [None, ""])[1].lower().removeprefix("www.")
-    store_name = SETTINGS["identity"].get("store_names", {}).get(host) or host
-    cta = template.format(store=store, entity=product["Entity"], web=web, product=product["Product name"],
-                          store_name=store_name).strip()
+    cta = template.format(store=store, entity=product["Entity"], web=web).strip()
     lines = desc.splitlines()
     at = next((i for i, l in enumerate(lines) if store in l), None)
     if at is None:  # no store line: before the tags line, or at the end
@@ -817,10 +814,7 @@ def with_cta(spec, desc, lang):
     lines[at:at + 1] = cta.splitlines()
     # The call to action points to the entity's website: support lines with an e-mail address go away.
     email = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
-    url = re.compile(r"\(?\s*(?:https?://|www\.)[^\s)]+\s*\)?")
-    kept = [l if l in cta.splitlines() else url.sub("", l).rstrip(" :") for l in lines
-            if l in cta.splitlines() or ((not store or store not in l) and not email.search(l))]
-    return "\n".join(kept)
+    return "\n".join(l for l in lines if l in cta.splitlines() or (store not in l and not email.search(l)))
 
 
 def youtube_post(spec, lang):

@@ -48,15 +48,11 @@ DEFAULTS = {
         # Call to action that `drive` adds to the YouTube description, per recording language ({store} = the
         # product's store link, {entity} and {web} = the entity that makes it). A description line with the store
         # link is replaced by it. Empty = no call to action.
-        # No addresses in the description (links go in the video's comments): {product} = product name,
-        # {store_name} = store name (store_names, by the host of the store link), {entity} = entity name.
-        # {store} and {web} (the addresses) are still available for other uses.
         "cta": {
-            "en": "Search for «{product}» in the {store_name}.\nFor help or other services, contact {entity} through its website.",
-            "es": "Busca «{product}» en {store_name}.\nSi necesitas ayuda u otros servicios, contacta con {entity} desde su web.",
-            "de": "Suchen Sie «{product}» im {store_name}.\nFür Hilfe oder weitere Leistungen erreichen Sie {entity} über die Website.",
+            "en": "Get the module on: {store}\nContact us on the {entity} website for help or other services: {web}",
+            "es": "Consigue el módulo en: {store}\nContáctanos en la web de {entity} para ayuda u otros servicios: {web}",
+            "de": "Das Modul gibt es hier: {store}\nFür Hilfe oder weitere Leistungen kontaktieren Sie uns auf der Website von {entity}: {web}",
         },
-        "store_names": {"apps.odoo.com": "Odoo Apps Store"},
     },
 }
 
