@@ -13,7 +13,8 @@ Commands:
                        timings of the recorded clips (scenes one after the other, as in the final video)
   cards   <spec.json>  opening, closing and thumbnail from the product's identity (products CSV, see config.json)
   build   <spec.json>  <final>/<video>.mp4 (opening + scenes in order + closing, 1920x1080 30 fps H.264, silent AAC,
-                       +faststart), <video>.thumb.jpg (1280x720, < 2 MB) and the subtitles above
+                       +faststart), <video>.thumb.jpg (1280x720, < 2 MB) and the subtitles above. Opening and closing are
+                       generated from the product's identity or, with "clip", an mp4 made elsewhere (e.g. a video editor)
   review  <spec.json>  (planned) contact sheet of key frames + timing report
   drive   <spec.json>  copy the final files to the video's folder in Drive (spec "drive_folder", inside drive.videos_folder):
                        new version of the files already there (same link), --dry-run shows the plan,
@@ -134,6 +135,11 @@ def check_spec(spec_path, lang_override=None):
                 errs, _ = schema_errors(schema, step, sub=actions[found[0]], prefix=place)
                 errors += errs
 
+    if spec.get("product"):
+        sys.path.insert(0, HERE)
+        import cards
+        errors += [f"missing definition: {m}" for m in cards.audit(spec["product"])]
+
     lang = spec.get("lang", "es")
     subtitles = spec.get("subtitles", [])
     langs = [lang] + [l for l in subtitles if l != lang]
@@ -185,7 +191,7 @@ def check_spec(spec_path, lang_override=None):
             errors.append("chapters: the first scene must have a chapter (YouTube's first chapter starts at 0:00)")
         if len(chapters) < 3:
             warnings.append(f"chapters: {len(chapters)} defined; YouTube shows chapters only with 3 or more")
-        closing_s = (closing_seconds(spec))
+        closing_s = closing_seconds(spec, os.path.dirname(os.path.abspath(spec_path)))
         for k, i in enumerate(chapters):
             stop = chapters[k + 1] if k + 1 < len(chapters) else len(spec["scenes"])
             secs = sum(durations[i:stop]) + (closing_s if stop == len(spec["scenes"]) else 0)
@@ -197,6 +203,15 @@ def check_spec(spec_path, lang_override=None):
     closing = spec.get("closing")
     if isinstance(closing, dict) and closing.get("image") and not os.path.isfile(os.path.join(base_dir, closing["image"])):
         errors.append(f"closing.image: {closing['image']} not found next to the spec")
+    for key in ("intro", "closing"):
+        part = spec.get(key)
+        if isinstance(part, dict) and part.get("clip"):
+            if not os.path.isfile(os.path.join(base_dir, part["clip"])):
+                errors.append(f"{key}.clip: {part['clip']} not found next to the spec")
+            if part.get("image"):
+                errors.append(f"{key}: use either 'clip' or 'image', not both")
+    if isinstance(spec.get("thumbnail"), str) and not os.path.isfile(os.path.join(base_dir, spec["thumbnail"])):
+        errors.append(f"thumbnail: {spec['thumbnail']} not found next to the spec")
     if generated_screens(spec):
         sys.path.insert(0, HERE)
         import cards
@@ -210,7 +225,7 @@ def check_spec(spec_path, lang_override=None):
                 cards.logo_file(product["entity"]["Video logo"])
             except cards.CardError as e:
                 errors.append(f"product: {e}")
-    if isinstance(spec.get("intro"), dict):
+    if generated_intro(spec):
         feature = spec.get("feature")
         text = feature.get(spec.get("lang", "es"), "") if isinstance(feature, dict) else (feature or "")
         if not text.strip():
@@ -227,7 +242,7 @@ def check_spec(spec_path, lang_override=None):
             warnings.append("version/label: only shown with composition C")
         if composition == "C" and not spec.get("version"):
             warnings.append("version: composition C usually shows the Odoo version or module under the task")
-    elif spec.get("product"):
+    elif spec.get("product") and not isinstance(spec.get("intro"), dict):
         warnings.append("no 'intro' and a hand-made or missing closing: the video does not show the product's identity "
                         "(add \"intro\": {} and \"closing\": {} to generate them from the products CSV)")
     if not spec.get("demo"):
@@ -256,25 +271,50 @@ def check_spec(spec_path, lang_override=None):
         errors.append("the spec is inside a module repository: specs and demo data live in presentacion/, never in the repo")
 
     info = {"lang": lang, "subtitles": subtitles, "scenes": names, "chapters": len(chapters),
-            "estimated_seconds": round(intro_seconds(spec) + sum(durations) + closing_seconds(spec), 1),
+            "estimated_seconds": round(intro_seconds(spec, base_dir) + sum(durations) + closing_seconds(spec, base_dir), 1),
             "out": os.path.join(base_dir, spec.get("out", "clips"))}
     return spec, errors, warnings, info
 
 
-def closing_seconds(spec):
+def external_clip(spec, key, base):
+    """Path of the "clip" of spec[key] ("intro" or "closing"): a video made elsewhere (e.g. exported from a video
+    editor) that replaces the generated screen, or None."""
+    part = spec.get(key)
+    return os.path.join(base, part["clip"]) if isinstance(part, dict) and part.get("clip") else None
+
+
+def part_seconds(spec, key, default, base):
+    """Seconds of the opening/closing: the real length of its clip, else "seconds" (default for generated screens)."""
+    part = spec.get(key)
+    if not isinstance(part, dict):
+        return 0.0
+    clip = external_clip(spec, key, base)
+    if clip and os.path.isfile(clip):
+        return media_seconds(clip) or float(part.get("seconds", default))
+    return float(part.get("seconds", default))
+
+
+def closing_seconds(spec, base=""):
+    return part_seconds(spec, "closing", 4, base)
+
+
+def intro_seconds(spec, base=""):
+    return part_seconds(spec, "intro", 3, base)
+
+
+def generated_intro(spec):
+    return isinstance(spec.get("intro"), dict) and not spec["intro"].get("clip")
+
+
+def generated_closing(spec):
     closing = spec.get("closing")
-    return float(closing.get("seconds", 4)) if isinstance(closing, dict) else 0.0
-
-
-def intro_seconds(spec):
-    intro = spec.get("intro")
-    return float(intro.get("seconds", 3)) if isinstance(intro, dict) else 0.0
+    return isinstance(closing, dict) and not closing.get("image") and not closing.get("clip")
 
 
 def generated_screens(spec):
-    """True if the spec asks for screens made from the product's identity (opening, or closing without image)."""
-    closing = spec.get("closing")
-    return isinstance(spec.get("intro"), dict) or (isinstance(closing, dict) and not closing.get("image"))
+    """True if the spec asks for screens made from the product's identity (a generated opening, or a closing with
+    neither 'image' nor 'clip'). The thumbnail follows the generated opening or closing."""
+    return generated_intro(spec) or generated_closing(spec)
 
 
 def screens(spec_path, spec, info):
@@ -366,7 +406,7 @@ def split_cue(text, width=SRT_LINE):
 def timeline(spec_path, spec, info):
     """Scenes one after the other, as in the final video: [{"scene", "start", "seconds", "notes", "chapter"}].
     Reads <out>/<scene>.notes.json written by 'record'; errors if a scene is missing or out of date."""
-    errors, scenes, start = [], [], intro_seconds(spec)
+    errors, scenes, start = [], [], intro_seconds(spec, os.path.dirname(os.path.abspath(spec_path)))
     for scene in spec["scenes"]:
         path = os.path.join(info["out"], scene["name"] + ".notes.json")
         if not os.path.isfile(path):
@@ -430,7 +470,7 @@ def build_subtitles(spec_path, spec, info):
             for i, (b, e, t) in enumerate(cues, 1):
                 f.write(f"{i}\n{clock(b, True)} --> {clock(e, True)}\n" + "\n".join(wrap(t)) + "\n\n")
         files.append(path)
-    closing = closing_seconds(spec)
+    closing = closing_seconds(spec, os.path.dirname(os.path.abspath(spec_path)))
     marks = [(sc["start"], sc["chapter"]) for sc in scenes if sc["chapter"]]
     if marks and scenes and marks[0][0] == scenes[0]["start"]:
         marks[0] = (0.0, marks[0][1])  # the first chapter includes the opening
@@ -492,9 +532,12 @@ def build_video(spec_path, spec, info, scenes, made=None):
         return {"errors": [f"clip not found for {', '.join(missing)}: run 'record' first"], "warnings": []}
     made = made or {}
     closing = spec.get("closing")
-    closing_img = (os.path.join(base, closing["image"]) if closing.get("image") else made.get("closing")) if closing else None
-    closing_s = closing_seconds(spec)
-    intro_img, intro_s = made.get("opening") if spec.get("intro") is not None else None, intro_seconds(spec)
+    closing_clip, intro_clip = external_clip(spec, "closing", base), external_clip(spec, "intro", base)
+    closing_img = (None if closing_clip else
+                   os.path.join(base, closing["image"]) if closing.get("image") else made.get("closing")) if closing else None
+    closing_s = closing_seconds(spec, base)
+    intro_img = None if intro_clip else made.get("opening") if spec.get("intro") is not None else None
+    intro_s = intro_seconds(spec, base)
     if not closing:
         warnings.append("no 'closing' in the spec: the video ends on the last scene")
 
@@ -502,7 +545,12 @@ def build_video(spec_path, spec, info, scenes, made=None):
     fit = f"scale={W}:{H}:force_original_aspect_ratio=decrease,pad={W}:{H}:(ow-iw)/2:(oh-ih)/2:color=white"
     still = lambda k: f"[{k}:v]fps={FPS},{fit},scale=out_range=tv,setsar=1,format=yuv420p[v{k}]"
     n = 0
-    if intro_img:
+    video_clip = lambda path: (inputs.extend(["-i", path]), chains.append(
+        f"[{n}:v]fps={FPS},{fit},scale=out_range=tv,setsar=1,format=yuv420p[v{n}]"))
+    if intro_clip:
+        video_clip(intro_clip)
+        n += 1
+    elif intro_img:
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{intro_s:.3f}", "-i", intro_img]
         chains.append(still(n))
         n += 1
@@ -510,11 +558,15 @@ def build_video(spec_path, spec, info, scenes, made=None):
         inputs += ["-i", sc["file"]]
         chains.append(f"[{n}:v]fps={FPS},{fit},setsar=1,format=yuv420p[v{n}]")
         n += 1
-    if closing_img:
+    if closing_clip:
+        video_clip(closing_clip)
+        n += 1
+    elif closing_img:
         inputs += ["-loop", "1", "-framerate", str(FPS), "-t", f"{closing_s:.3f}", "-i", closing_img]
         chains.append(still(n))
         n += 1
-    total = (intro_s if intro_img else 0) + sum(sc["seconds"] for sc in scenes) + (closing_s if closing_img else 0)
+    total = (intro_s if (intro_img or intro_clip) else 0) + sum(sc["seconds"] for sc in scenes) \
+        + (closing_s if (closing_img or closing_clip) else 0)
     inputs += ["-f", "lavfi", "-t", f"{total:.3f}", "-i", "anullsrc=r=48000:cl=stereo"]
     graph = ";".join(chains) + ";" + "".join(f"[v{i}]" for i in range(n)) + f"concat=n={n}:v=1:a=0[v]"
     out = os.path.join(final, f"{video}.mp4")
@@ -529,8 +581,12 @@ def build_video(spec_path, spec, info, scenes, made=None):
         errors.append(f"{out}: lasts {got} s, expected {total:.2f} s (opening + scenes + closing)")
 
     thumb = os.path.join(final, f"{video}.thumb.jpg")
-    if made.get("thumb_png"):
+    if isinstance(spec.get("thumbnail"), str):
+        source = ["-i", os.path.join(base, spec["thumbnail"])]
+    elif made.get("thumb_png") and not intro_clip:
         source = ["-i", made["thumb_png"]]
+    elif intro_clip:
+        source = ["-ss", f"{min(1.0, intro_s / 2):.2f}", "-i", intro_clip]
     elif closing_img:
         source = ["-i", closing_img]
     else:

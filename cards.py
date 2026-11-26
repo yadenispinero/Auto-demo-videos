@@ -42,7 +42,8 @@ PRODUCT_COLUMNS = {"Product": ["Producto"], "Product name": ["Nombre del product
                    "Entity": ["Entidad que lo produce"], "Module": ["Módulo técnico"],
                    "Store link": ["Link tienda / compra"], "Logo": ["Logo del producto"],
                    "Accent colour": ["Color identificativo"], "Background colour": ["Color de fondo"]}
-ENTITY_COLUMNS = {"Entity": ["Entidad"], "Web": [], "Video logo": ["Logo para vídeos"], "Text colour": ["Color de texto"]}
+ENTITY_COLUMNS = {"Entity": ["Entidad"], "Web": [], "Video logo": ["Logo para vídeos"], "Text colour": ["Color de texto"],
+                  "Font file": ["Archivo de fuente"]}
 # Columns the screens need (the CSV can have more).
 REQUIRED = ["Product name", "Entity", "Store link", "Logo", "Accent colour", "Background colour"]
 # The text colour and logo of the entity are only in the entities CSV (not repeated per product).
@@ -108,6 +109,63 @@ def find_entity(name, path=ENTITIES_CSV):
     if not HEX.match(row["Text colour"]):
         raise CardError(f"entity '{name}': Text colour must be a #RRGGBB colour (entities CSV)")
     return row
+
+
+def entity_font(entity):
+    """Font file of an entity row: its optional "Font file" column (a path like the logo ones) or, when empty,
+    identity.font of the config."""
+    name = entity.get("Font file", "")
+    if not name:
+        return FONT
+    path = local_path(name)
+    if not os.path.isfile(path):
+        raise CardError(f"entity '{entity['Entity']}': font file not found: {path}")
+    return path
+
+
+def audit(key):
+    """Everything the screens need from the tables (products CSV and entities CSV), checked at once.
+
+    The scripts only read these tables (exports of the 'Promo channels' and 'Plan Promocion' sheets), never the
+    identity manual. Returns a list of messages, empty if nothing is missing. Each message says which table
+    and column to fill, and that the value comes from the entity's identity manual."""
+    problems = []
+    try:
+        products = load_products()
+    except CardError as e:
+        return [str(e)]
+    row = next((p for p in products if key and key in (p["Module"], p["Product"])), None)
+    if not row:
+        return [f"product '{key}' is not in the products CSV: add a row for it"]
+    where = "products CSV"
+    for c in REQUIRED:
+        if not row.get(c):
+            problems.append(f"product '{key}': empty '{c}' in the {where} (copy it from the entity's identity manual "
+                            "into the Promo channels / Plan Promocion table, then refresh the CSV)")
+    for c in ("Accent colour", "Background colour"):
+        if row.get(c) and not HEX.match(row[c]):
+            problems.append(f"product '{key}': '{c}' must be #RRGGBB in the {where}")
+    ent = row.get("Entity", "")
+    if any(p in ent for p in PENDING):
+        problems.append(f"product '{key}': the entity is still '{ent}' in the {where}")
+        return problems
+    try:
+        entity = find_entity(ent)
+    except CardError as e:
+        problems.append(str(e))
+        return problems
+    for part in (entity.get("Video logo", "")).replace("\n", ",").split(","):
+        part = part.strip()
+        if part:
+            try:
+                logo_file(part)
+            except CardError as e:
+                problems.append(f"entity '{ent}': {e}")
+    try:
+        entity_font({**entity, "Entity": ent})
+    except CardError as e:
+        problems.append(str(e))
+    return problems
 
 
 LOGOS = local_path(SETTINGS["identity"]["logos_dir"])

@@ -89,12 +89,17 @@
     "intro": {
       "type": "object",
       "additionalProperties": false,
-      "description": "Opening screen generated from the product's identity (productos.csv): product name and the entity that makes it. Needs 'product'.",
+      "description": "Opening. Without 'clip' it is a screen generated from the product's identity (productos.csv): product name, the feature and the entity that makes it (needs 'product'). 'clip' (relative to the spec) replaces it with a video made elsewhere, e.g. exported from a video editor; its own length is used.",
       "properties": {
         "seconds": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "default": 3
+          "default": 3,
+          "description": "Length of a generated opening (a 'clip' keeps its own)."
+        },
+        "clip": {
+          "type": "string",
+          "description": "Path relative to the spec of an mp4 that replaces the generated opening, e.g. clips/v3-00-opening.mp4."
         }
       }
     },
@@ -102,7 +107,7 @@
       "type": "object",
       "additionalProperties": false,
       "required": [],
-      "description": "Closing screen. Without 'image' it is generated from the product's identity (productos.csv): product logo and store link. 'image' (relative to the spec) replaces it with a hand-made 1920x1080 image.",
+      "description": "Closing. Without 'image' or 'clip' it is generated from the product's identity (productos.csv): product logo and store link. 'image' (relative to the spec) replaces it with a hand-made 1920x1080 image; 'clip' with a video made elsewhere (its own length is used).",
       "properties": {
         "image": {
           "type": "string",
@@ -111,7 +116,12 @@
         "seconds": {
           "type": "number",
           "exclusiveMinimum": 0,
-          "default": 4
+          "default": 4,
+          "description": "Length of a generated or image closing (a 'clip' keeps its own)."
+        },
+        "clip": {
+          "type": "string",
+          "description": "Path relative to the spec of an mp4 that replaces the generated closing, e.g. clips/v3-99-closing.mp4."
         }
       }
     },
@@ -163,6 +173,10 @@
       "items": {
         "$ref": "#/$defs/scene"
       }
+    },
+    "thumbnail": {
+      "type": "string",
+      "description": "Path relative to the spec of a hand-made 1280x720 image used as the thumbnail (under 2 MB after conversion). Without it the thumbnail follows the generated opening; with an opening 'clip' and no thumbnail, a frame of that clip."
     }
   },
   "$defs": {

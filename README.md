@@ -77,7 +77,10 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
 - `lang` (recording language) and `subtitles` (other languages). Texts are `{"en": ..., "es": ...}` with every
   language, or a plain string when there are no subtitles.
 - `demo`: `base` (local Odoo URL), `db`, optional `rebuild` script.
-- `intro`, `closing`: generated from the product's identity (or `closing.image` for a hand-made one).
+- `intro`, `closing`: generated from the product's identity, or replaced by something made elsewhere — `closing.image`
+  for a hand-made image, or `clip` (`intro.clip`, `closing.clip`) for a video exported from any editor; a clip keeps its
+  own length. `thumbnail`: a hand-made 1280x720 image (otherwise it follows the generated opening, or a frame of the
+  opening clip).
 - `scenes`: `name` (`v1-01-word`, also the clip name), `path` (Odoo URL), optional `chapter`, `setup`/`post`
   steps that are not recorded, `lead`/`tail` seconds, and `steps`: `wait`, `goto`, `click`, `hover`, `highlight`
   (each also as `*_css`), `type`, `key`, `scroll`, `scroll_to`, `note`, `arrow`, `spotlight`, `badge`, `zoom`
@@ -87,6 +90,26 @@ Every command prints its progress on stderr and, as the **last line on stdout, o
 
 YouTube chapters: the first one at 0:00, at least 3, each 10 s or longer.
 
+## Two ways to make the opening and the closing
+
+Both end the same way — `build` joins opening + recorded scenes + closing — and differ only in where the opening and
+the closing come from:
+
+1. **Generated** (default): `intro: {}` / `closing: {}` render them from the product's identity (see below).
+2. **Made in a video editor** (for example, a template in Google Vids): export each as an mp4 and point to it:
+
+   ```json
+   "intro":   {"clip": "clips/v3-00-opening.mp4"},
+   "closing": {"clip": "clips/v3-99-closing.mp4"}
+   ```
+
+   Each one keeps its own length, so the subtitle and chapter times already include them. With both as clips the spec
+   does not need `product` or `feature`. You can also mix: a clip opening with a generated closing, or the reverse.
+   Add `"thumbnail": "clips/v3-thumb.png"` if you made the thumbnail in the editor too; without it the thumbnail is
+   a frame of the opening clip.
+
+The scenes are recorded the same way in both (`record`).
+
 ## Product identity
 
 The opening shows, in one of the three compositions, the product name, the feature the video demonstrates and the entity that makes it; the closing, the product logo, its store link and
@@ -94,7 +117,10 @@ the entity's web; the thumbnail uses the opening's composition with the thumbnai
 Google Sheet, *File › Download › CSV*); see `examples/` for the columns (Spanish headers of the original sheet are
 accepted too, see `cards.py`). A logo can be a local path, a public URL or
 a Google Drive link; for a Drive file shared with people (not by link), save a copy as `<logos_dir>/<Drive id>.png`.
-The default font is Open Sans (`fonts/`).
+The default font is Open Sans (`fonts/`). The notes, arrows and step badges drawn over the recording use the font of
+the entity that makes the video (the spec's `product`): put a `.ttf`, `.otf` or `.woff2` file in the optional
+`Font file` column of the entities CSV (a path, like the logos). Empty = `identity.font`; a spec without `product`
+also uses `identity.font`.
 
 ## One tool, many workspaces
 
@@ -138,3 +164,10 @@ YouTube channel with translated titles and descriptions, then writes the result 
 
 [MIT](LICENSE) © 2026 Yadenis Piñero. The Open Sans font in `fonts/` is under the SIL Open Font License
 ([fonts/OFL.txt](fonts/OFL.txt)). Odoo is a trademark of Odoo S.A.; this project is not affiliated with it.
+
+### Missing definitions
+
+The scripts read only the products and entities tables (exports of the identity tables), never the identity manual.
+`video.py check` lists, in one go, every definition the screens need that is missing or invalid in those tables
+(product colours, logo, entity web, text colour, logo files, font file), each as `missing definition: ...` with the
+table and column to fill. Fix them in the tables, not in the scripts.
