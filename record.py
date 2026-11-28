@@ -450,6 +450,21 @@ def target_args(step, key):
                                step.get("nth", 0))
 
 
+def wait_loaded(ws, seconds, limit=90):
+    """Wait at least `seconds` after a navigation, and until the page has loaded. The first load after a fresh
+    database is much slower (the server builds its assets), so a fixed sleep is not enough."""
+    time.sleep(seconds)
+    end = time.time() + limit
+    while time.time() < end:
+        try:
+            if ws.js("document.readyState === 'complete' && !!document.body && document.body.children.length > 0"):
+                return
+        except RecordError:
+            pass  # the page is still being replaced
+        time.sleep(0.5)
+    raise RecordError("page did not finish loading in %d s" % limit)
+
+
 def js_until(ws, expression, step):
     """Run a mark until its element is on the page (it returns true)."""
     for _ in range(20):
@@ -471,7 +486,7 @@ def run(ws, step, sid, ctx):
         end_note(ctx)  # the page reload takes the marks away
         STATE["paused"], start = True, time.time()
         ws.call("Page.navigate", url=BASE + step["goto"])
-        time.sleep(step.get("load", 5))
+        wait_loaded(ws, step.get("load", 5))
         install(ws)
         STATE["offset"] += time.time() - start
         STATE["paused"] = False
@@ -660,7 +675,7 @@ def record(spec_path, base, db, login="admin", password="admin", only=None, keep
             if only and scene["name"] not in only:
                 continue
             ws.call("Page.navigate", url=BASE + scene["path"])
-            time.sleep(scene.get("load", 6))
+            wait_loaded(ws, scene.get("load", 6))
             install(ws)
             ctx = {"lang": lang, "notes": []}
             for step in scene.get("setup", []):
